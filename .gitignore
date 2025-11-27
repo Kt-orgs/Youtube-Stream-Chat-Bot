@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Environment Variables
+.env
+app/.env
+
+# Google Auth
+client_secret.json
+token.pickle
+app/client_secret.json
+app/token.pickle
+
+# Bot Data
+streamer_profile.json
+processed_messages.txt
+app/streamer_profile.json
+app/processed_messages.txt
+
+# IDE
+.vscode/
+.idea/
