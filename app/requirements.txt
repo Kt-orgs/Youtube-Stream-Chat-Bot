@@ -16,3 +16,5 @@ requests>=2.31.0
 
 # Note: If google-adk is not available via pip, you may need to install it separately
 # or use an alternative agent framework
+
+aiohttp>=3.9.0
