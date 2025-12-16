@@ -219,13 +219,29 @@ def main():
     
     # Run the bot
     try:
-        asyncio.run(run_youtube_chat_bot(
-            video_id=video_id,
-            agent_name=agent_name,
-            streamer_profile=streamer_profile,
-            current_game=current_game,
-            stream_topic=stream_topic
-        ))
+        # If running in GitHub Actions, we might want to run for a short duration to verify startup
+        # and then exit gracefully, instead of running indefinitely.
+        if os.environ.get('GITHUB_ACTIONS') == 'true':
+            logger.info("Running in GitHub Actions - starting bot with timeout...")
+            try:
+                # Run for 30 seconds then exit
+                await asyncio.wait_for(run_youtube_chat_bot(
+                    video_id=video_id,
+                    agent_name=agent_name,
+                    streamer_profile=streamer_profile,
+                    current_game=current_game,
+                    stream_topic=stream_topic
+                ), timeout=30.0)
+            except asyncio.TimeoutError:
+                logger.info("GitHub Actions test run completed successfully (timeout reached)")
+        else:
+            asyncio.run(run_youtube_chat_bot(
+                video_id=video_id,
+                agent_name=agent_name,
+                streamer_profile=streamer_profile,
+                current_game=current_game,
+                stream_topic=stream_topic
+            ))
     except KeyboardInterrupt:
         logger.info("\n\nBot stopped by user")
     except Exception as e:
