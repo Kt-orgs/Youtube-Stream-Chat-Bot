@@ -1,0 +1,18 @@
+# Core dependencies
+python-dotenv>=1.0.0
+pytchat>=0.5.3
+
+# Google Cloud & YouTube API
+google-api-python-client>=2.100.0
+google-auth-oauthlib>=1.1.0
+google-auth>=2.23.0
+google-auth-httplib2>=0.1.1
+
+# Google ADK (Agent Development Kit)
+google-adk>=0.1.0
+
+# Data handling
+requests>=2.31.0
+
+# Note: If google-adk is not available via pip, you may need to install it separately
+# or use an alternative agent framework

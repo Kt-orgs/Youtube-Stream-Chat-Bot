@@ -5,7 +5,10 @@ try:
     from tools.valorant import get_valorant_stats
 except ImportError:
     # Handle case where running from different directory
-    from app.tools.valorant import get_valorant_stats
+   try:
+      from app.tools.valorant import get_valorant_stats
+   except ModuleNotFoundError:
+      from tools.valorant import get_valorant_stats
 
 root_agent = Agent(
    # A unique name for the agent.

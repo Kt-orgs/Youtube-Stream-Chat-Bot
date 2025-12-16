@@ -9,12 +9,24 @@ import sys
 import json
 from dotenv import load_dotenv
 
-# Add parent directory to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Ensure imports work both when running from repo root and app folder
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+REPO_ROOT = os.path.dirname(BASE_DIR)
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
+
+# Import logging first
+from logger import get_logger
+from config_validator import validate_startup
+from constants import STREAMER_PROFILE_FILE
+
+logger = get_logger(__name__)
 
 from youtube_integration.chat_bridge import run_youtube_chat_bot
 
-# Use absolute path for profile file to ensure it's found
+# Use relative path for profile file
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROFILE_FILE = os.path.join(BASE_DIR, "streamer_profile.json")
 
@@ -93,6 +105,12 @@ def get_streamer_profile():
 
 def main():
     """Main entry point"""
+    # Validate configuration at startup
+    is_valid, errors, warnings = validate_startup()
+    if not is_valid:
+        logger.error("Startup validation failed. Please fix the errors above.")
+        return
+    
     # Load environment variables
     load_dotenv()
     
@@ -100,55 +118,84 @@ def main():
     youtube_api_key = os.getenv('YOUTUBE_API_KEY')
     video_id = os.getenv('YOUTUBE_VIDEO_ID')
     agent_name = os.getenv('AGENT_NAME', 'youtube_chat_advanced')
+    # Optional: allow disabling LLM agent when key issues occur
+    enable_agent = os.getenv('ENABLE_AGENT', 'true').strip().lower()
+
+    # Surface Gemini key presence for troubleshooting (masked)
+    google_api_key = os.getenv('GOOGLE_API_KEY') or os.getenv('GENAI_API_KEY') or os.getenv('GEMINI_API_KEY')
+    if google_api_key:
+        logger.info("Gemini key detected (env): ****" + google_api_key[-4:])
+    else:
+        logger.warning("No Gemini key found in env (GOOGLE_API_KEY/GENAI_API_KEY/GEMINI_API_KEY). Agent calls may fail.")
+    if enable_agent not in ("1", "true", "yes", "y"):
+        logger.info("Agent disabled via ENABLE_AGENT; running skills-only mode.")
     
     if not youtube_api_key:
-        print("Error: YOUTUBE_API_KEY not found in .env file")
-        print("Please add: YOUTUBE_API_KEY=your_key_here")
+        logger.error("Error: YOUTUBE_API_KEY not found in .env file")
+        logger.error("Please add: YOUTUBE_API_KEY=your_key_here")
         return
     
+    # Auto-detect live stream if video_id not provided
     if not video_id:
-        print("No YOUTUBE_VIDEO_ID found in .env")
-        video_id = input("Enter your YouTube video ID: ").strip()
-        
-        if not video_id:
-            print("Video ID is required")
-            return
+        logger.info("No YOUTUBE_VIDEO_ID in .env - attempting to auto-detect live stream...")
+        try:
+            from youtube_integration.youtube_api import YouTubeLiveChatAPI
+            temp_api = YouTubeLiveChatAPI()
+            temp_api.authenticate()
+            video_id = temp_api.get_current_live_video_id()
             
+            if not video_id:
+                logger.error("Could not auto-detect live stream. Please ensure:")
+                logger.error("  1. You have an active live stream running")
+                logger.error("  2. Or provide YOUTUBE_VIDEO_ID in .env file")
+                manual_id = input("\nEnter your YouTube video ID manually (or press Enter to exit): ").strip()
+                if manual_id:
+                    video_id = manual_id
+                else:
+                    return
+            else:
+                logger.info(f"✓ Auto-detected live stream with video ID: {video_id}")
+        except Exception as e:
+            logger.error(f"Error during auto-detection: {e}")
+            logger.error("Please provide YOUTUBE_VIDEO_ID in .env file")
+            return
+    
     # Get Streamer Profile
     streamer_profile = get_streamer_profile()
+    logger.info(f"Streamer profile loaded for: {streamer_profile.get('Name', 'Unknown')}")
     
     # Get Current Context
-    print("\n" + "-"*40)
+    logger.info("-" * 40)
     
     current_game = None
     stream_topic = None
     
     if streamer_profile.get('Is Gaming', True):
         current_game = input("What game are you playing today? ").strip()
+        logger.info(f"Game: {current_game}")
     else:
         default_topic = streamer_profile.get('Stream Topic', '')
         stream_topic = input(f"What is the topic of today's stream? [{default_topic}]: ").strip() or default_topic
+        logger.info(f"Topic: {stream_topic}")
         
-    print("-"*40 + "\n")
+    logger.info("-" * 40)
     
-    print("=" * 60)
-    print("YouTube Live Chat Bot")
-    print("=" * 60)
-    print(f"Video ID: {video_id}")
-    print(f"Agent: {agent_name}")
+    logger.info("=" * 60)
+    logger.info("YouTube Live Chat Bot")
+    logger.info("=" * 60)
+    logger.info(f"Video ID: {video_id}")
+    logger.info(f"Agent: {agent_name}")
     if current_game:
-        print(f"Game: {current_game}")
+        logger.info(f"Game: {current_game}")
     if stream_topic:
-        print(f"Topic: {stream_topic}")
-    print(f"Streamer: {streamer_profile.get('Name', 'Unknown')}")
-    print("=" * 60)
-    print("\nStarting bot... Press Ctrl+C to stop")
-    print()
+        logger.info(f"Topic: {stream_topic}")
+    logger.info(f"Streamer: {streamer_profile.get('Name', 'Unknown')}")
+    logger.info("=" * 60)
+    logger.info("\nStarting bot... Press Ctrl+C to stop")
     
     # Run the bot
     try:
         asyncio.run(run_youtube_chat_bot(
-            youtube_api_key=youtube_api_key,
             video_id=video_id,
             agent_name=agent_name,
             streamer_profile=streamer_profile,
@@ -156,11 +203,9 @@ def main():
             stream_topic=stream_topic
         ))
     except KeyboardInterrupt:
-        print("\n\nBot stopped by user")
+        logger.info("\n\nBot stopped by user")
     except Exception as e:
-        print(f"\nError: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"\nError: {e}", exc_info=True)
 
 
 if __name__ == "__main__":

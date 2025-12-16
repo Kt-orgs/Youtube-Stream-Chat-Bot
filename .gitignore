@@ -1,25 +1,74 @@
-# Python
-__pycache__/
-*.pyc
-.venv/
-venv/
+# IMPORTANT: Sensitive files - NEVER commit these!
+# ====================================================
 
-# Environment Variables
-.env
-app/.env
-
-# Google Auth
+# OAuth credentials and tokens
 client_secret.json
 token.pickle
-app/client_secret.json
-app/token.pickle
 
-# Bot Data
+# Environment variables with API keys
+.env
+
+# Streamer profile (contains personal info)
 streamer_profile.json
-processed_messages.txt
-app/streamer_profile.json
-app/processed_messages.txt
 
+# ====================================================
+# Python
+# ====================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# ====================================================
 # IDE
+# ====================================================
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ====================================================
+# Logs and data
+# ====================================================
+logs/
+*.log
+
+# Runtime data files
+data/
+processed_messages.txt
+valorant_last_game.txt
+valorant_rank.txt
+valorant_stats.txt
+
+# ====================================================
+# OS
+# ====================================================
+Thumbs.db
+Desktop.ini
+github-secrets.txt
+github-secrets.txt
