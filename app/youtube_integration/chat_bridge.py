@@ -168,16 +168,64 @@ class YouTubeChatBridge:
             logger.info("Pytchat initialized successfully (Quota-free reading mode)")
         except Exception as e:
             logger.error(f"Error initializing pytchat: {e}")
-            if os.environ.get('GITHUB_ACTIONS') == 'true':
-                logger.warning("Running in GitHub Actions - skipping pytchat initialization failure to allow bot to continue (testing mode)")
-                # Create a dummy chat object for testing
-                class DummyChat:
-                    def is_alive(self): return True
-                    def get(self): 
-                        class DummyItems:
-                            def sync_items(self): return []
-                        return DummyItems()
-                chat = DummyChat()
+            
+            # Check environment variables for CI/GitHub Actions
+            is_github = os.environ.get('GITHUB_ACTIONS') == 'true'
+            is_ci = os.environ.get('CI') == 'true'
+            
+            logger.info(f"Environment check - GITHUB_ACTIONS: {os.environ.get('GITHUB_ACTIONS')}, CI: {os.environ.get('CI')}")
+            
+            if is_github or is_ci:
+                logger.warning("Running in CI/GitHub Actions - switching to API-based message fetching (Quota usage applies)")
+                
+                # Fallback to official API
+                class YouTubeAPIChatSource:
+                    def __init__(self, youtube_api):
+                        self.youtube = youtube_api
+                        self.last_poll_time = 0
+                        self.polling_interval = 10.0 # Start with 10s to be safe
+                        
+                    def is_alive(self):
+                        return True
+                        
+                    def get(self):
+                        return self
+                        
+                    def sync_items(self):
+                        current_time = time.time()
+                        if current_time - self.last_poll_time < self.polling_interval:
+                            return []
+                            
+                        self.last_poll_time = current_time
+                        try:
+                            # fetch_chat_messages returns (messages, polling_interval)
+                            messages, interval = self.youtube.fetch_chat_messages()
+                            self.polling_interval = max(interval, 5.0)
+                            
+                            # Convert dicts to objects compatible with pytchat structure
+                            result = []
+                            for msg in messages:
+                                class MessageObj:
+                                    pass
+                                
+                                m = MessageObj()
+                                m.id = msg['id']
+                                m.message = msg['message']
+                                m.datetime = msg['timestamp']
+                                
+                                m.author = MessageObj()
+                                m.author.name = msg['author']
+                                m.author.channelId = msg['author_channel_id']
+                                m.author.isChatModerator = msg['is_moderator']
+                                m.author.isChatOwner = msg['is_owner']
+                                
+                                result.append(m)
+                            return result
+                        except Exception as ex:
+                            logger.error(f"Error fetching messages via API: {ex}")
+                            return []
+
+                chat = YouTubeAPIChatSource(self.youtube)
             else:
                 return
         
