@@ -71,6 +71,27 @@ def get_streamer_profile():
     profile = {}
     
     # 1. Determine Stream Type
+    # Check if running in non-interactive mode (e.g. GitHub Actions)
+    if os.environ.get('GITHUB_ACTIONS') == 'true':
+        print("Running in GitHub Actions - using default Valorant profile")
+        is_gaming = True
+        profile['Is Gaming'] = True
+        profile['Name'] = os.environ.get('STREAMER_NAME', 'Streamer')
+        profile['Valorant ID'] = os.environ.get('VALORANT_ID', '')
+        profile['Valorant Region'] = os.environ.get('VALORANT_REGION', 'ap')
+        profile['System Specs'] = "Cloud Bot"
+        profile['Profession/Bio'] = "I am a bot running in the cloud!"
+        
+        # Save and return immediately
+        try:
+            with open(PROFILE_FILE, 'w') as f:
+                json.dump(profile, f, indent=4)
+            print("\nDefault profile saved successfully!")
+            return profile
+        except Exception as e:
+            print(f"Error saving profile: {e}")
+            return profile
+
     is_gaming = input("Are you going to use this agent for a gaming stream? (yes/no): ").strip().lower().startswith('y')
     profile['Is Gaming'] = is_gaming
     
@@ -171,7 +192,10 @@ def main():
     stream_topic = None
     
     if streamer_profile.get('Is Gaming', True):
-        current_game = input("What game are you playing today? ").strip()
+        if os.environ.get('GITHUB_ACTIONS') == 'true':
+            current_game = "Valorant"
+        else:
+            current_game = input("What game are you playing today? ").strip()
         logger.info(f"Game: {current_game}")
     else:
         default_topic = streamer_profile.get('Stream Topic', '')
