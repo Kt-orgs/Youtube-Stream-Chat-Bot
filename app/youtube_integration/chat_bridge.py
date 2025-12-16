@@ -269,9 +269,22 @@ class YouTubeChatBridge:
         # Start the periodic stats poster as a background task
         stats_task = asyncio.create_task(post_stats_periodically())
 
+        # Track last stream status check
+        last_stream_check = time.time()
+        stream_check_interval = 60  # Check every 60 seconds
+        
         # Main loop
         while self.is_running and chat.is_alive():
             try:
+                # Check if stream is still active periodically
+                current_time = time.time()
+                if current_time - last_stream_check >= stream_check_interval:
+                    if not self.youtube.is_stream_active(self.video_id):
+                        logger.info("Stream has ended - stopping bot gracefully")
+                        self.is_running = False
+                        break
+                    last_stream_check = current_time
+                
                 # Fetch new messages using pytchat
                 for c in chat.get().sync_items():
                     # Convert pytchat message to our format
@@ -287,7 +300,6 @@ class YouTubeChatBridge:
                     await self.process_message(msg_data)
                 
                 # Track viewer count periodically
-                current_time = time.time()
                 if current_time - self.last_viewer_snapshot >= self.viewer_snapshot_interval:
                     try:
                         stats = self.youtube.get_stream_stats()
@@ -310,9 +322,18 @@ class YouTubeChatBridge:
                 logger.error(f"Error in chat bridge loop: {e}")
                 await asyncio.sleep(5)
         
+        # Cancel the stats task
+        if 'stats_task' in locals():
+            stats_task.cancel()
+            try:
+                await stats_task
+            except asyncio.CancelledError:
+                pass
+        
         # End analytics session when stopping
         self.analytics.end_session()
         logger.info("Analytics session ended")
+        logger.info("Bot shutdown complete")
     
     async def process_message(self, message: dict):
         """

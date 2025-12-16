@@ -355,6 +355,46 @@ class YouTubeLiveChatAPI:
             logger.error(f"Error deleting message: {e}")
             return False
     
+    def is_stream_active(self, video_id: str) -> bool:
+        """
+        Check if a stream is currently active/live
+        
+        Args:
+            video_id: YouTube video ID
+            
+        Returns:
+            True if stream is live, False otherwise
+        """
+        try:
+            request = self.youtube.videos().list(
+                part="snippet,liveStreamingDetails",
+                id=video_id
+            )
+            response = request.execute()
+            
+            if not response.get('items'):
+                return False
+                
+            item = response['items'][0]
+            live_details = item.get('liveStreamingDetails', {})
+            
+            # Check if stream has an active live chat and is actually live
+            has_active_chat = live_details.get('activeLiveChatId') is not None
+            actual_end_time = live_details.get('actualEndTime')
+            
+            # Stream is active if it has active chat and hasn't ended
+            is_active = has_active_chat and actual_end_time is None
+            
+            if not is_active:
+                logger.info(f"Stream {video_id} is no longer active")
+            
+            return is_active
+            
+        except Exception as e:
+            logger.error(f"Error checking stream status: {e}")
+            # Return True on error to avoid premature shutdown
+            return True
+    
     def get_stream_stats(self, video_id: str = None) -> Optional[Dict[str, int]]:
         """
         Get current stream stats: viewer count, likes, and subs
