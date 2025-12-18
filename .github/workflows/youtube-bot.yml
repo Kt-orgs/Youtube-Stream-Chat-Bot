@@ -1,10 +1,10 @@
 
 name: YouTube Chat Bot - Auto Stream Detection
 
-on:
+#on:
   # Run every 10 minutes to check for live streams
-  schedule:
-    - cron: '*/10 * * * *'  # Every 10 minutes
+  #schedule:
+    #- cron: '*/10 * * * *'  # Every 10 minutes
   
   # Allow manual trigger
   workflow_dispatch:
