@@ -14,7 +14,7 @@ root_agent = Agent(
    # A unique name for the agent.
    name="youtube_chat_handler_advanced",
    # The Large Language Model (LLM) that agent will use.
-   model='gemini-2.0-flash',
+   model='gemini-1.5-flash',
    # A short description of the agent's purpose.
    description="Advanced AI assistant for YouTube live stream chat with search capabilities.",
    # Instructions to set the agent's behavior.

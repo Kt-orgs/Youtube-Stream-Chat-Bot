@@ -576,6 +576,12 @@ class YouTubeChatBridge:
         except Exception as e:
             # Handle leaked/invalid API key and other LLM failures gracefully
             err_text = str(e)
+            
+            # Handle Rate Limits (429) specifically to avoid error spam
+            if "RESOURCE_EXHAUSTED" in err_text or "429" in err_text:
+                logger.warning("Gemini API Rate Limit (429) hit. Skipping response to cool down.")
+                return None
+
             logger.error(f"Error generating response: {err_text}")
             if "PERMISSION_DENIED" in err_text or "API key" in err_text:
                 # Provide a short fallback message so bot doesn't crash mid-stream
