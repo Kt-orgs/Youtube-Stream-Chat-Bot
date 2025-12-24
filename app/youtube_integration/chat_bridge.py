@@ -118,7 +118,15 @@ class YouTubeChatBridge:
         self.processed_messages = self.load_history()
         
         # Cache to store recent bot messages to avoid self-replies
-        self.recent_bot_messages = deque(maxlen=20)
+        self.recent_bot_messages = deque(maxlen=50)
+        
+        # Helper: normalize text to compare bot messages regardless of formatting
+        def _normalize_text(s: str) -> str:
+            try:
+                return ''.join(s.split()).lower().replace('*', '')
+            except Exception:
+                return s
+        self._normalize_text = _normalize_text
         
         # Analytics tracker
         self.analytics = get_analytics_tracker()
@@ -245,7 +253,7 @@ class YouTubeChatBridge:
                 try:
                     message_id = self.youtube.post_message(intro_msg)
                     if message_id:
-                        self.recent_bot_messages.append(intro_msg)
+                        self.recent_bot_messages.append(self._normalize_text(intro_msg))
                         self.processed_messages.add(message_id)
                         self.save_message_id(message_id)
                         logger.info(f"[BOT INTRO] Posted introduction message (ID: {message_id})")
@@ -274,8 +282,8 @@ class YouTubeChatBridge:
                             f"📊 Stream Stats: {stats['viewer_count']} watching, {stats['likes']} likes, {stats['subs']} subs! "
                             f"If you're enjoying the stream, don't forget to like 👍 and subscribe ❤️ for more content!"
                         )
-                        # Add to cache BEFORE posting to prevent race condition
-                        self.recent_bot_messages.append(msg)
+                        # Add to cache BEFORE posting to prevent race condition (normalized)
+                        self.recent_bot_messages.append(self._normalize_text(msg))
                         
                         message_id = self.youtube.post_message(msg)
                         if message_id:
@@ -384,14 +392,25 @@ class YouTubeChatBridge:
         self.save_message_id(message['id'])
         
         # Check if this message matches something the bot recently sent
-        # This prevents the bot from replying to itself when running on the streamer's account
-        if message['message'] in self.recent_bot_messages:
+        # Normalize to avoid mismatches due to formatting/newlines removed by YouTube/pytchat
+        incoming_normalized = self._normalize_text(message['message'])
+        if incoming_normalized in self.recent_bot_messages:
             logger.info(f"[SELF-MESSAGE FILTER] Skipping: {message['message'][:50]}...")
             return
+
+        # If authored by our own authenticated channel, skip to prevent self-replies
+        if self.youtube.my_channel_id and message.get('author_channel_id') == self.youtube.my_channel_id:
+            logger.info(f"[SELF-MESSAGE FILTER] Skipping own channel message: {message['message'][:50]}...")
+            return
         
-        # Also skip periodic stats messages by pattern
-        if message['message'].startswith("📊 Stream Stats:"):
-            logger.info("[STATS FILTER] Skipping periodic stats message")
+        # Also skip stats messages regardless of formatting (bold/newlines)
+        if 'stream stats' in incoming_normalized:
+            logger.info("[STATS FILTER] Skipping stream stats message")
+            return
+
+        # Skip common bot guidance messages
+        if incoming_normalized.startswith('valorantidnotfound.'):
+            logger.info("[SELF-MESSAGE FILTER] Skipping Valorant guidance message")
             return
         
         # Apply filters
@@ -486,8 +505,8 @@ class YouTubeChatBridge:
                 # Add the bot's own message ID to processed messages so we don't reply to it
                 self.processed_messages.add(message_id)
                 self.save_message_id(message_id)
-                # Add text to recent messages cache to avoid self-replies via pytchat
-                self.recent_bot_messages.append(response)
+                # Add text to recent messages cache (normalized) to avoid self-replies via pytchat
+                self.recent_bot_messages.append(self._normalize_text(response))
                 logger.info(f"[BOT]: {response}")
             else:
                 logger.warning("Failed to post response")

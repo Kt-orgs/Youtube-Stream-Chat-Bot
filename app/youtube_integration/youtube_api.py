@@ -311,6 +311,9 @@ class YouTubeLiveChatAPI:
             return None
         
         try:
+            # Safety: truncate long messages to avoid INVALID_REQUEST_METADATA
+            if message and len(message) > 200:
+                message = message[:197] + "..."
             request = self.youtube.liveChatMessages().insert(
                 part="snippet",
                 body={
