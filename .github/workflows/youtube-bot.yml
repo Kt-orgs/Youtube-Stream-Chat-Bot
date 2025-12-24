@@ -24,6 +24,9 @@ jobs:
     timeout-minutes: 240  # 4 hours max
     
     steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
     - name: Check if another run is already in progress
       run: |
         # Get all in-progress runs for this workflow
@@ -38,9 +41,6 @@ jobs:
         echo "✅ No other runs in progress. Proceeding..."
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    
-    - name: Checkout code
-      uses: actions/checkout@v4
     
     - name: Set up Python
       uses: actions/setup-python@v5
