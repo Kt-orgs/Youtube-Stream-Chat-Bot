@@ -77,9 +77,19 @@ jobs:
     
     - name: Restore streamer profile
       run: |
-        if [ -n "${{ secrets.STREAMER_PROFILE_JSON }}" ]; then
-          mkdir -p app
-          echo "${{ secrets.STREAMER_PROFILE_JSON }}" > app/streamer_profile.json
+        mkdir -p app
+
+        # Prefer base64 secrets/vars to avoid JSON escaping issues
+        if [ -n "${{ secrets.STREAMER_PROFILE_JSON_B64 }}" ]; then
+          echo "${{ secrets.STREAMER_PROFILE_JSON_B64 }}" | base64 -d > app/streamer_profile.json
+        elif [ -n "${{ secrets.STREAMER_PROFILE_JSON }}" ]; then
+          printf '%s' "${{ secrets.STREAMER_PROFILE_JSON }}" > app/streamer_profile.json
+        elif [ -n "${{ vars.STREAMER_PROFILE_JSON_B64 }}" ]; then
+          echo "${{ vars.STREAMER_PROFILE_JSON_B64 }}" | base64 -d > app/streamer_profile.json
+        elif [ -n "${{ vars.STREAMER_PROFILE_JSON }}" ]; then
+          printf '%s' "${{ vars.STREAMER_PROFILE_JSON }}" > app/streamer_profile.json
+        else
+          echo "No STREAMER_PROFILE_JSON provided (secret or var). Using defaults."
         fi
       continue-on-error: true
     
