@@ -581,6 +581,11 @@ class YouTubeChatBridge:
             if "RESOURCE_EXHAUSTED" in err_text or "429" in err_text:
                 logger.warning("Gemini API Rate Limit (429) hit. Skipping response to cool down.")
                 return None
+            
+            # Handle Model Not Found (404)
+            if "NOT_FOUND" in err_text or "404" in err_text:
+                logger.error(f"Gemini Model Error: {err_text}. Check model name in agent.py.")
+                return None
 
             logger.error(f"Error generating response: {err_text}")
             if "PERMISSION_DENIED" in err_text or "API key" in err_text:
