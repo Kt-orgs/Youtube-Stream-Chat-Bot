@@ -239,6 +239,32 @@ class YouTubeChatBridge:
         self.analytics.start_session(self.video_id, stream_title, game)
         logger.info("Analytics session started")
         
+        # Start intro message task (post after 60 seconds)
+        async def post_intro_after_delay():
+            try:
+                await asyncio.sleep(60)  # Wait 60 seconds
+                if self.is_running:
+                    intro_msg = (
+                        "🤖 Hey everyone! I'm a bot created by LOKI, and I'm active in the chat now! "
+                        "Feel free to ask me questions, and you can use !help to see available commands. "
+                        "Commands: !stats, !ping, !uptime, !socials, !status, !help - go ahead and try them!"
+                    )
+                    try:
+                        message_id = self.youtube.post_message(intro_msg)
+                        if message_id:
+                            self.recent_bot_messages.append(intro_msg)
+                            self.processed_messages.add(message_id)
+                            self.save_message_id(message_id)
+                            logger.info(f"[BOT INTRO] Posted introduction message (ID: {message_id})")
+                        else:
+                            logger.warning("Failed to post intro message - message_id is None")
+                    except Exception as e:
+                        logger.warning(f"Failed to post intro message: {e}")
+            except asyncio.CancelledError:
+                pass
+        
+        intro_task = asyncio.create_task(post_intro_after_delay())
+        
         # Start periodic stats poster
         async def post_stats_periodically():
             # Wait 15 minutes before posting first stats
@@ -329,6 +355,14 @@ class YouTubeChatBridge:
             stats_task.cancel()
             try:
                 await stats_task
+            except asyncio.CancelledError:
+                pass
+        
+        # Cancel the intro task
+        if 'intro_task' in locals():
+            intro_task.cancel()
+            try:
+                await intro_task
             except asyncio.CancelledError:
                 pass
         
