@@ -30,7 +30,7 @@ jobs:
     - name: Check if another run is already in progress
       run: |
         # Get all in-progress runs for this workflow
-        RUNS=$(gh run list --workflow=youtube-bot.yml --status=in_progress --json databaseId --jq 'length')
+        RUNS=$(gh run list --repo=${{ github.repository }} --workflow=youtube-bot.yml --status=in_progress --json databaseId --jq 'length')
         
         # If there's more than 1 run in progress (current + others), skip
         if [ "$RUNS" -gt 1 ]; then
