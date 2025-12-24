@@ -233,7 +233,13 @@ class YouTubeChatBridge:
         logger.info("Chat bridge started successfully!")
         logger.info("Monitoring chat for messages...")
         
-        # Post bot introduction message
+        # Start analytics session
+        stream_title = self.stream_topic or self.current_game or "Unknown"
+        game = self.current_game or ""
+        self.analytics.start_session(self.video_id, stream_title, game)
+        logger.info("Analytics session started")
+        
+        # Post bot introduction message after analytics is ready
         intro_msg = (
             "🤖 Hey everyone! I'm a bot created by LOKI, and I'm active in the chat now! "
             "Feel free to ask me questions, and you can use !help to see available commands. "
@@ -246,14 +252,10 @@ class YouTubeChatBridge:
                 self.processed_messages.add(message_id)
                 self.save_message_id(message_id)
                 logger.info(f"[BOT INTRO] Posted introduction message (ID: {message_id})")
+            else:
+                logger.warning("Failed to post intro message - message_id is None")
         except Exception as e:
             logger.warning(f"Failed to post intro message: {e}")
-        
-        # Start analytics session
-        stream_title = self.stream_topic or self.current_game or "Unknown"
-        game = self.current_game or ""
-        self.analytics.start_session(self.video_id, stream_title, game)
-        logger.info("Analytics session started")
         
         # Start periodic stats poster
         async def post_stats_periodically():
