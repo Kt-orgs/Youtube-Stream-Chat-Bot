@@ -239,27 +239,6 @@ class YouTubeChatBridge:
         self.analytics.start_session(self.video_id, stream_title, game)
         logger.info("Analytics session started")
         
-        # Wait a moment for API to be fully ready before posting intro
-        await asyncio.sleep(1.0)
-        
-        # Post bot introduction message after analytics is ready
-        intro_msg = (
-            "🤖 Hey everyone! I'm a bot created by LOKI, and I'm active in the chat now! "
-            "Feel free to ask me questions, and you can use !help to see available commands. "
-            "Commands: !stats, !ping, !uptime, !socials, !status, !help - go ahead and try them!"
-        )
-        try:
-            message_id = self.youtube.post_message(intro_msg)
-            if message_id:
-                self.recent_bot_messages.append(intro_msg)
-                self.processed_messages.add(message_id)
-                self.save_message_id(message_id)
-                logger.info(f"[BOT INTRO] Posted introduction message (ID: {message_id})")
-            else:
-                logger.warning("Failed to post intro message - message_id is None")
-        except Exception as e:
-            logger.warning(f"Failed to post intro message: {e}")
-        
         # Start periodic stats poster
         async def post_stats_periodically():
             # Wait 15 minutes before posting first stats
