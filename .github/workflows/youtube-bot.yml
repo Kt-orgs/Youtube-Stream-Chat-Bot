@@ -79,6 +79,14 @@ jobs:
         echo "🔍 Checking for active live stream..."
         export PYTHONPATH="${PYTHONPATH}:$(pwd)/app"
         python app/run_youtube_bot.py
+        BOT_EXIT_CODE=$?
+        if [ $BOT_EXIT_CODE -eq 0 ]; then
+          echo "✅ Bot completed successfully - stream ended"
+          exit 0
+        else
+          echo "❌ Bot exited with error code: $BOT_EXIT_CODE"
+          exit $BOT_EXIT_CODE
+        fi
       timeout-minutes: 240
     
     - name: Save OAuth token to cache

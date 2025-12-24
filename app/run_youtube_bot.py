@@ -227,11 +227,15 @@ def main():
             current_game=current_game,
             stream_topic=stream_topic
         ))
+        logger.info("\n\nBot completed - stream ended")
+        return 0
     except KeyboardInterrupt:
         logger.info("\n\nBot stopped by user")
+        return 0
     except Exception as e:
         logger.error(f"\nError: {e}", exc_info=True)
+        return 1
 
 
 if __name__ == "__main__":
-    main()
+    exit(main())
