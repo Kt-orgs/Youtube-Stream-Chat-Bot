@@ -49,7 +49,7 @@ def get_streamer_profile():
                             game = input("What game do you primarily play? ").strip()
                             if 'valorant' in game.lower():
                                 profile['Valorant ID'] = input("Enter your Valorant ID (Name#Tag): ").strip()
-                                profile['Valorant Region'] = input("Enter your Valorant Region (ap, na, eu, kr, latam, br) [default: ap]: ").strip() or 'ap'
+                                profile['Valorant Region'] = input("Enter your Valorant Region (ap, na, eu, kr, latam, br) [default: eu]: ").strip() or 'eu'
                     else:
                         if 'Stream Topic' not in profile:
                             profile['Stream Topic'] = input("What is your usual stream topic? ").strip()
@@ -78,7 +78,7 @@ def get_streamer_profile():
         profile['Is Gaming'] = True
         profile['Name'] = os.environ.get('STREAMER_NAME', 'Streamer')
         profile['Valorant ID'] = os.environ.get('VALORANT_ID', '')
-        profile['Valorant Region'] = os.environ.get('VALORANT_REGION', 'ap')
+        profile['Valorant Region'] = os.environ.get('VALORANT_REGION', 'eu')
         profile['System Specs'] = "Cloud Bot"
         profile['Profession/Bio'] = "I am a bot running in the cloud!"
         
@@ -102,7 +102,7 @@ def get_streamer_profile():
             print("Valorant detected! Let's set up your stats.")
             profile['Valorant ID'] = input("What is your Valorant ID (Name#Tag)? (optional, press Enter to skip): ").strip()
             if profile['Valorant ID']:
-                profile['Valorant Region'] = input("What is your Valorant Region (ap, na, eu, kr, latam, br) [default: ap]? ").strip() or 'ap'
+                profile['Valorant Region'] = input("What is your Valorant Region (ap, na, eu, kr, latam, br) [default: eu]? ").strip() or 'eu'
     else:
         profile['Stream Topic'] = input("What will you be streaming? ").strip()
         
