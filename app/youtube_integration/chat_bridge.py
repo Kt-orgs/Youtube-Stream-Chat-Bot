@@ -236,22 +236,28 @@ class YouTubeChatBridge:
         async def post_intro_after_delay():
             try:
                 await asyncio.sleep(60)  # Wait 60 seconds
-                if self.is_running:
-                    intro_msg = (
-                        "🤖 Hey everyone! I'm a bot created by LOKI, and I'm active in the chat now! "
-                        "Feel free to ask me questions, and you can use !help to see available commands. "
-                        "Commands: !stats, !ping, !uptime, !socials, !status, !help - go ahead and try them!"
-                    )
-                    try:
-                        message_id = self.youtube.post_message(intro_msg)
-                        if message_id:
-                            self.recent_bot_messages.append(intro_msg)
-                            self.processed_messages.add(message_id)
-                            self.save_message_id(message_id)
-                            logger.info(f"[BOT INTRO] Posted introduction message (ID: {message_id})")
-                        else:
-                            logger.warning("Failed to post intro message - message_id is None")
-                    except Exception as e:
+                if not self.is_running:
+                    return
+
+                intro_msg = (
+                    "🤖 Hey everyone! I'm a bot created by LOKI, and I'm active in the chat now! "
+                    "Feel free to ask me questions, and you can use !help to see available commands. "
+                    "Commands: !stats, !ping, !uptime, !socials, !status, !help - go ahead and try them!"
+                )
+                try:
+                    message_id = self.youtube.post_message(intro_msg)
+                    if message_id:
+                        self.recent_bot_messages.append(intro_msg)
+                        self.processed_messages.add(message_id)
+                        self.save_message_id(message_id)
+                        logger.info(f"[BOT INTRO] Posted introduction message (ID: {message_id})")
+                    else:
+                        logger.warning("Failed to post intro message - message_id is None")
+                except Exception as e:
+                    err_text = str(e)
+                    if "INVALID_REQUEST_METADATA" in err_text:
+                        logger.warning("Intro message blocked by YouTube API (INVALID_REQUEST_METADATA). Skipping intro to avoid further errors.")
+                    else:
                         logger.warning(f"Failed to post intro message: {e}")
             except asyncio.CancelledError:
                 pass
