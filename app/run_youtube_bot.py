@@ -82,6 +82,21 @@ def get_streamer_profile():
         profile['System Specs'] = "Cloud Bot"
         profile['Profession/Bio'] = "I am a bot running in the cloud!"
         
+        # Add socials from environment if available
+        twitter = os.environ.get('TWITTER_HANDLE')
+        instagram = os.environ.get('INSTAGRAM_HANDLE')
+        discord = os.environ.get('DISCORD_INVITE')
+        twitch = os.environ.get('TWITCH_URL')
+        
+        if twitter:
+            profile['Twitter'] = twitter
+        if instagram:
+            profile['Instagram'] = instagram
+        if discord:
+            profile['Discord'] = discord
+        if twitch:
+            profile['Twitch'] = twitch
+        
         # Save and return immediately
         try:
             with open(PROFILE_FILE, 'w') as f:

@@ -104,6 +104,11 @@ jobs:
         HENRIK_DEV_API_KEY: ${{ secrets.HENRIK_DEV_API_KEY }}
         AGENT_NAME: youtube_chat_advanced
         YOUTUBE_VIDEO_ID: ${{ inputs.video_id }}
+        # Socials (optional)
+        TWITTER_HANDLE: ${{ vars.TWITTER_HANDLE || secrets.TWITTER_HANDLE }}
+        INSTAGRAM_HANDLE: ${{ vars.INSTAGRAM_HANDLE || secrets.INSTAGRAM_HANDLE }}
+        DISCORD_INVITE: ${{ vars.DISCORD_INVITE || secrets.DISCORD_INVITE }}
+        TWITCH_URL: ${{ vars.TWITCH_URL || secrets.TWITCH_URL }}
       run: |
         echo "🔍 Checking for active live stream..."
         export PYTHONPATH="${PYTHONPATH}:$(pwd)/app"
