@@ -233,6 +233,22 @@ class YouTubeChatBridge:
         logger.info("Chat bridge started successfully!")
         logger.info("Monitoring chat for messages...")
         
+        # Post bot introduction message
+        intro_msg = (
+            "🤖 Hey everyone! I'm a bot created by LOKI, and I'm active in the chat now! "
+            "Feel free to ask me questions, and you can use !help to see available commands. "
+            "Commands: !stats, !ping, !uptime, !socials, !status, !help - go ahead and try them!"
+        )
+        try:
+            message_id = self.youtube.post_message(intro_msg)
+            if message_id:
+                self.recent_bot_messages.append(intro_msg)
+                self.processed_messages.add(message_id)
+                self.save_message_id(message_id)
+                logger.info(f"[BOT INTRO] Posted introduction message (ID: {message_id})")
+        except Exception as e:
+            logger.warning(f"Failed to post intro message: {e}")
+        
         # Start analytics session
         stream_title = self.stream_topic or self.current_game or "Unknown"
         game = self.current_game or ""
@@ -241,6 +257,8 @@ class YouTubeChatBridge:
         
         # Start periodic stats poster
         async def post_stats_periodically():
+            # Wait 15 minutes before posting first stats
+            await asyncio.sleep(900)
             while self.is_running:
                 try:
                     stats = self.youtube.get_stream_stats()
@@ -264,7 +282,7 @@ class YouTubeChatBridge:
                         logger.warning("Could not fetch stream stats for periodic post.")
                 except Exception as e:
                     logger.error(f"Error in periodic stats poster: {e}")
-                await asyncio.sleep(900)  # 15 minutes
+                await asyncio.sleep(900)  # 15 minutes between stats
 
         # Start the periodic stats poster as a background task
         stats_task = asyncio.create_task(post_stats_periodically())
