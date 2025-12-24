@@ -7,7 +7,7 @@ from .parser import CommandParser
 from .command import BaseCommand, CommandContext
 from .builtins import HelpCommand, PingCommand, UptimeCommand, SocialsCommand, StatusCommand
 from .valorant import ValorantStatsCommand, ValorantAgentCommand, ValorantMapCommand
-from .analytics import ViewersCommand, LeaderboardCommand, BotStatsCommand, ExportCommand
+from .analytics import ViewersCommand, LeaderboardCommand, TopChattersCommand, BotStatsCommand, ExportCommand
 
 __all__ = [
     "CommandParser", 
@@ -23,6 +23,7 @@ __all__ = [
     "ValorantMapCommand",
     "ViewersCommand",
     "LeaderboardCommand",
+    "TopChattersCommand",
     "BotStatsCommand",
     "ExportCommand",
 ]

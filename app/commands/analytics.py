@@ -86,6 +86,63 @@ class LeaderboardCommand(BaseCommand):
             return "❌ Error fetching leaderboard"
 
 
+class TopChattersCommand(BaseCommand):
+    """Show top chatters from yesterday or specific date"""
+    
+    name = "topchatters"
+    aliases = ["yesterdaytop", "topusers"]
+    description = "Show most active chatters from yesterday or specific date"
+    usage = "!topchatters [yesterday|today|YYYY-MM-DD]"
+    
+    async def execute(self, context: CommandContext) -> Optional[str]:
+        """Execute topchatters command"""
+        try:
+            analytics = get_analytics_tracker()
+            args = context.message.strip().split()
+            
+            # Determine which date to query
+            if len(args) > 1:
+                date_arg = args[1].lower()
+                if date_arg == "yesterday":
+                    date_str = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+                    label = "Yesterday's"
+                elif date_arg == "today":
+                    date_str = datetime.now().strftime("%Y-%m-%d")
+                    label = "Today's"
+                else:
+                    # Try to parse as date
+                    try:
+                        datetime.strptime(date_arg, "%Y-%m-%d")
+                        date_str = date_arg
+                        label = f"{date_arg}"
+                    except ValueError:
+                        return "Invalid date format. Use: !topchatters [yesterday|today|YYYY-MM-DD]"
+            else:
+                # Default to yesterday
+                date_str = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+                label = "Yesterday's"
+            
+            top_chatters = analytics.db.get_top_chatters_by_date(date_str, limit=5)
+            
+            if not top_chatters:
+                return f"No chat activity found for {date_str}"
+            
+            response = f"🏆 **{label} Top Chatters:**\n"
+            medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"]
+            
+            for idx, chatter in enumerate(top_chatters):
+                medal = medals[idx] if idx < len(medals) else f"{idx+1}."
+                author = chatter['author']
+                count = chatter['message_count']
+                response += f"{medal} **{author}** - {count} messages\n"
+            
+            return response.rstrip()
+            
+        except Exception as e:
+            logger.error(f"Error in topchatters command: {e}", exc_info=True)
+            return "❌ Error fetching top chatters"
+
+
 class BotStatsCommand(BaseCommand):
     """Show bot performance statistics"""
     

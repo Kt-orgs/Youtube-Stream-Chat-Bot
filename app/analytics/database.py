@@ -296,6 +296,73 @@ class AnalyticsDatabase:
             logger.error(f"Error getting top chatters: {e}", exc_info=True)
             return []
     
+    def get_top_chatters_by_date(self, date_str: str, limit: int = 5) -> List[Dict[str, Any]]:
+        """
+        Get top chatters for a specific date
+        
+        Args:
+            date_str: Date in YYYY-MM-DD format (e.g., "2025-12-23")
+            limit: Number of top chatters to return
+            
+        Returns:
+            List of dicts with author and message_count
+        """
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute("""
+                SELECT m.author, COUNT(*) as message_count
+                FROM messages m
+                JOIN sessions s ON m.session_id = s.id
+                WHERE DATE(s.start_time) = ?
+                GROUP BY m.author
+                ORDER BY message_count DESC
+                LIMIT ?
+            """, (date_str, limit))
+            
+            return [dict(row) for row in cursor.fetchall()]
+            
+        except Exception as e:
+            logger.error(f"Error getting top chatters by date: {e}", exc_info=True)
+            return []
+    
+    def get_recent_sessions(self, days: int = 7) -> List[Dict[str, Any]]:
+        """Get recent sessions from the past N days"""
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute("""
+                SELECT id, start_time, end_time, stream_title, total_messages, 
+                       total_commands, peak_viewers
+                FROM sessions
+                WHERE start_time >= datetime('now', '-' || ? || ' days')
+                ORDER BY start_time DESC
+            """, (days,))
+            
+            return [dict(row) for row in cursor.fetchall()]
+            
+        except Exception as e:
+            logger.error(f"Error getting recent sessions: {e}", exc_info=True)
+            return []
+    
+    def get_yesterday_top_chatters(self, limit: int = 5) -> List[Dict[str, Any]]:
+        """Get top chatters from yesterday"""
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute("""
+                SELECT m.author, COUNT(*) as message_count
+                FROM messages m
+                JOIN sessions s ON m.session_id = s.id
+                WHERE DATE(s.start_time) = DATE('now', '-1 day')
+                GROUP BY m.author
+                ORDER BY message_count DESC
+                LIMIT ?
+            """, (limit,))
+            
+            return [dict(row) for row in cursor.fetchall()]
+            
+        except Exception as e:
+            logger.error(f"Error getting yesterday's top chatters: {e}", exc_info=True)
+            return []
+    
     def get_session_stats(self, session_id: int) -> Optional[Dict[str, Any]]:
         """Get comprehensive session statistics"""
         try:

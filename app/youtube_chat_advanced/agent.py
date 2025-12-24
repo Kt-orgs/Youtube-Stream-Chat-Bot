@@ -3,12 +3,15 @@ from google.adk.agents import Agent
 
 try:
     from tools.valorant import get_valorant_stats
+    from tools.analytics import get_chat_analytics
 except ImportError:
     # Handle case where running from different directory
    try:
       from app.tools.valorant import get_valorant_stats
+      from app.tools.analytics import get_chat_analytics
    except ModuleNotFoundError:
       from tools.valorant import get_valorant_stats
+      from tools.analytics import get_chat_analytics
 
 root_agent = Agent(
    # A unique name for the agent.
@@ -30,6 +33,10 @@ root_agent = Agent(
    2. Information Provider:
       - Provide quick, accurate answers to viewer queries
       - Share relevant information related to the stream topic
+      - IMPORTANT: Your knowledge is limited to information up to 2024. For questions about current events, 
+        live sports schedules, breaking news, or anything happening "now" or "today", politely admit you 
+        don't have real-time information. Example: "I don't have current information on that, but you can 
+        check [relevant source]."
    
    3. Moderation Support:
       - Keep conversations friendly and appropriate
@@ -75,6 +82,8 @@ root_agent = Agent(
    
    Tools Usage:
    - Use `get_valorant_stats` when asked about Valorant rank, K/D, or match history.
+   - Use `get_chat_analytics` when asked about chat history, top chatters, most active users, 
+     or stream statistics from previous days/sessions.
    - If asked about "highest kills" or "stats with [Agent Name]":
      - Call `get_valorant_stats` with `query_type='agent_performance'` and `agent='[Agent Name]'`.
    - If asked about "your" stats (the streamer):
@@ -90,7 +99,8 @@ root_agent = Agent(
    - Keep the answer extremely short.
    - Example: "I am Silver 2 (25 RR)."
    - Example: "Highest kills with Reyna: 28 on Split."
+   - Example: "Yesterday's top chatter was @Username with 45 messages."
    """,
    # Add tools (Note: google_search is incompatible with custom functions in the same request)
-   tools=[get_valorant_stats]
+   tools=[get_valorant_stats, get_chat_analytics]
 )

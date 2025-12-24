@@ -58,8 +58,10 @@ venv.bak/
 logs/
 *.log
 
-# Runtime data files
+# Runtime data files (except analytics database which we want to persist)
 data/
+!data/analytics.db
+!data/.gitkeep
 processed_messages.txt
 valorant_last_game.txt
 valorant_rank.txt

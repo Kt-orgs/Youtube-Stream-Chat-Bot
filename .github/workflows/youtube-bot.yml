@@ -106,6 +106,15 @@ jobs:
       run: |
         mkdir -p app/logs app/data
     
+    - name: Restore analytics database
+      run: |
+        if [ -f data/analytics.db ]; then
+          echo "✅ Analytics database found, using existing data"
+        else
+          echo "ℹ️ No existing analytics database, will create new one"
+        fi
+      continue-on-error: true
+    
     - name: Check for live stream and run bot
       env:
         GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
@@ -142,6 +151,29 @@ jobs:
       with:
         path: app/token.pickle
         key: youtube-oauth-token-${{ github.run_id }}
+    
+    - name: Commit analytics database
+      if: always()
+      run: |
+        git config --global user.name "GitHub Actions Bot"
+        git config --global user.email "actions@github.com"
+        
+        # Add analytics database if it exists and has changes
+        if [ -f data/analytics.db ]; then
+          git add data/analytics.db
+          
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "ℹ️ No changes to analytics database"
+          else
+            git commit -m "📊 Update analytics database - $(date +'%Y-%m-%d %H:%M:%S')"
+            git push
+            echo "✅ Analytics database updated and pushed"
+          fi
+        else
+          echo "⚠️ No analytics database found to commit"
+        fi
+      continue-on-error: true
     
     - name: Upload logs
       if: always()

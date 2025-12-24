@@ -21,7 +21,7 @@ try:
         CommandParser, CommandContext,
         HelpCommand, PingCommand, UptimeCommand, SocialsCommand, StatusCommand,
         ValorantStatsCommand, ValorantAgentCommand, ValorantMapCommand,
-        ViewersCommand, LeaderboardCommand, BotStatsCommand, ExportCommand
+        ViewersCommand, LeaderboardCommand, TopChattersCommand, BotStatsCommand, ExportCommand
     )
     from app.analytics import get_analytics_tracker
 except ImportError:
@@ -32,7 +32,7 @@ except ImportError:
         CommandParser, CommandContext,
         HelpCommand, PingCommand, UptimeCommand, SocialsCommand, StatusCommand,
         ValorantStatsCommand, ValorantAgentCommand, ValorantMapCommand,
-        ViewersCommand, LeaderboardCommand, BotStatsCommand, ExportCommand
+        ViewersCommand, LeaderboardCommand, TopChattersCommand, BotStatsCommand, ExportCommand
     )
     from analytics import get_analytics_tracker
 
@@ -109,6 +109,7 @@ class YouTubeChatBridge:
         # Analytics commands
         self.command_parser.register(ViewersCommand())
         self.command_parser.register(LeaderboardCommand())
+        self.command_parser.register(TopChattersCommand())
         self.command_parser.register(BotStatsCommand())
         self.command_parser.register(ExportCommand())
         logger.debug(f"Registered {len(self.command_parser.get_all_commands())} commands")
