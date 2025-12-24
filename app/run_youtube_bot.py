@@ -37,8 +37,11 @@ def get_streamer_profile():
             with open(PROFILE_FILE, 'r') as f:
                 profile = json.load(f)
                 
-                # Backward compatibility check for Is Gaming
-                if 'Is Gaming' not in profile:
+            logger.info(f"Loaded profile from {PROFILE_FILE}")
+            logger.info(f"Profile contents: {json.dumps(profile, indent=2)}")
+            
+            # Backward compatibility check for Is Gaming
+            if 'Is Gaming' not in profile:
                     print("\n[Update] Stream Configuration")
                     is_gaming = input("Is this a gaming stream? (yes/no): ").strip().lower().startswith('y')
                     profile['Is Gaming'] = is_gaming
