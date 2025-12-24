@@ -240,9 +240,7 @@ class YouTubeChatBridge:
                     return
 
                 intro_msg = (
-                    "🤖 Hey everyone! I'm a bot created by LOKI, and I'm active in the chat now! "
-                    "Feel free to ask me questions, and you can use !help to see available commands. "
-                    "Commands: !stats, !ping, !uptime, !socials, !status, !help - go ahead and try them!"
+                    "🤖 Bot by LOKI here! Ask me anything. Try !help, !stats, !ping, !uptime, !socials, !status"
                 )
                 try:
                     message_id = self.youtube.post_message(intro_msg)
