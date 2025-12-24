@@ -78,18 +78,27 @@ jobs:
     - name: Restore streamer profile
       run: |
         mkdir -p app
-
-        # Prefer base64 secrets/vars to avoid JSON escaping issues
-        if [ -n "${{ secrets.STREAMER_PROFILE_JSON_B64 }}" ]; then
-          echo "${{ secrets.STREAMER_PROFILE_JSON_B64 }}" | base64 -d > app/streamer_profile.json
-        elif [ -n "${{ secrets.STREAMER_PROFILE_JSON }}" ]; then
-          printf '%s' "${{ secrets.STREAMER_PROFILE_JSON }}" > app/streamer_profile.json
-        elif [ -n "${{ vars.STREAMER_PROFILE_JSON_B64 }}" ]; then
-          echo "${{ vars.STREAMER_PROFILE_JSON_B64 }}" | base64 -d > app/streamer_profile.json
-        elif [ -n "${{ vars.STREAMER_PROFILE_JSON }}" ]; then
-          printf '%s' "${{ vars.STREAMER_PROFILE_JSON }}" > app/streamer_profile.json
+        
+        # Try different sources for profile (base64 preferred)
+        PROFILE_B64_SECRET="${{ secrets.STREAMER_PROFILE_JSON_B64 }}"
+        PROFILE_SECRET="${{ secrets.STREAMER_PROFILE_JSON }}"
+        PROFILE_B64_VAR="${{ vars.STREAMER_PROFILE_JSON_B64 }}"
+        PROFILE_VAR="${{ vars.STREAMER_PROFILE_JSON }}"
+        
+        if [ ! -z "$PROFILE_B64_SECRET" ]; then
+          echo "$PROFILE_B64_SECRET" | base64 -d > app/streamer_profile.json
+          echo "✅ Restored profile from STREAMER_PROFILE_JSON_B64 secret"
+        elif [ ! -z "$PROFILE_SECRET" ]; then
+          printf '%s' "$PROFILE_SECRET" > app/streamer_profile.json
+          echo "✅ Restored profile from STREAMER_PROFILE_JSON secret"
+        elif [ ! -z "$PROFILE_B64_VAR" ]; then
+          echo "$PROFILE_B64_VAR" | base64 -d > app/streamer_profile.json
+          echo "✅ Restored profile from STREAMER_PROFILE_JSON_B64 variable"
+        elif [ ! -z "$PROFILE_VAR" ]; then
+          printf '%s' "$PROFILE_VAR" > app/streamer_profile.json
+          echo "✅ Restored profile from STREAMER_PROFILE_JSON variable"
         else
-          echo "No STREAMER_PROFILE_JSON provided (secret or var). Using defaults."
+          echo "⚠️ No STREAMER_PROFILE_JSON provided. Will create from env vars."
         fi
       continue-on-error: true
     
