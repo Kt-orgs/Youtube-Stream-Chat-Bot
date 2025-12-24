@@ -6,14 +6,14 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-def get_valorant_stats(username: str, tag: str, region: str = 'ap', query_type: str = 'summary', agent: str = None) -> str:
+def get_valorant_stats(username: str, tag: str, region: str = 'eu', query_type: str = 'summary', agent: str = None) -> str:
     """
     Fetches Valorant stats for a player using HenrikDev API.
     
     Args:
         username: The Riot ID username (e.g., "Loki").
         tag: The Riot ID tag (e.g., "1234"). Do not include the '#'.
-        region: The region code (ap, na, eu, kr, latam, br). Default is 'ap'.
+        region: The region code (eu, na, ap, kr, latam, br). Default is 'eu'.
         query_type: Type of stats to fetch. 'summary' for rank/last match, 'agent_performance' for specific agent stats.
         agent: The agent name (e.g., "Reyna") if query_type is 'agent_performance'.
         

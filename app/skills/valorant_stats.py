@@ -29,7 +29,7 @@ class ValorantStatsSkill(BaseSkill):
     async def handle(self, author: str, message: str, context: Dict[str, Any]) -> Optional[str]:
         profile = context.get("streamer_profile", {})
         valorant_id = profile.get("Valorant ID", None)
-        region = profile.get("Valorant Region", "ap")
+        region = profile.get("Valorant Region", "eu")
         
         # Try to extract Valorant ID from message if present
         msg = message.lower()
