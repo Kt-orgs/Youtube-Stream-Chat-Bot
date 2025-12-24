@@ -160,13 +160,12 @@ class YouTubeChatBridge:
         self.youtube.live_chat_id = chat_id
         logger.debug(f"Live chat ID set to: {chat_id}")
             
-        # Determine environment early to avoid noisy pytchat errors in CI
+        # Determine environment; prefer pytchat to save quota, but fall back to API polling if it fails
         is_github = os.environ.get('GITHUB_ACTIONS') == 'true'
         is_ci = os.environ.get('CI') == 'true'
 
-        # Prefer quota-free pytchat locally; in CI use API polling directly
-        if is_github or is_ci:
-            logger.info("CI/GitHub Actions detected - skipping pytchat and using API polling (quota applies)")
+        def build_api_chat_source():
+            logger.warning("Using API polling for chat (quota will be consumed)")
 
             class YouTubeAPIChatSource:
                 def __init__(self, youtube_api):
@@ -187,11 +186,9 @@ class YouTubeChatBridge:
 
                     self.last_poll_time = current_time
                     try:
-                        # fetch_chat_messages returns (messages, polling_interval)
                         messages, interval = self.youtube.fetch_chat_messages()
                         self.polling_interval = max(interval, 5.0)
 
-                        # Convert dicts to objects compatible with pytchat structure
                         result = []
                         for msg in messages:
                             class MessageObj:
@@ -214,15 +211,16 @@ class YouTubeChatBridge:
                         logger.error(f"Error fetching messages via API: {ex}")
                         return []
 
-            chat = YouTubeAPIChatSource(self.youtube)
-        else:
-            # Initialize pytchat for reading messages (No quota usage)
-            try:
-                chat = pytchat.create(video_id=self.video_id)
-                logger.info("Pytchat initialized successfully (Quota-free reading mode)")
-            except Exception as e:
-                logger.error(f"Error initializing pytchat: {e}")
-                return
+            return YouTubeAPIChatSource(self.youtube)
+
+        # Try pytchat first (quota-free). If it fails anywhere, fall back to API polling.
+        try:
+            chat = pytchat.create(video_id=self.video_id)
+            logger.info("Pytchat initialized successfully (Quota-free reading mode)")
+        except Exception as e:
+            logger.error(f"Error initializing pytchat: {e}")
+            logger.info(f"Environment check - GITHUB_ACTIONS: {os.environ.get('GITHUB_ACTIONS')}, CI: {os.environ.get('CI')}")
+            chat = build_api_chat_source()
         
         self.is_running = True
         logger.info("Chat bridge started successfully!")
