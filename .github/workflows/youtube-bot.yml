@@ -113,6 +113,10 @@ jobs:
         HENRIK_DEV_API_KEY: ${{ secrets.HENRIK_DEV_API_KEY }}
         AGENT_NAME: youtube_chat_advanced
         YOUTUBE_VIDEO_ID: ${{ inputs.video_id }}
+        # Streamer profile env vars
+        STREAMER_NAME: ${{ vars.STREAMER_NAME || 'Streamer' }}
+        VALORANT_ID: ${{ vars.VALORANT_ID || secrets.VALORANT_ID }}
+        VALORANT_REGION: ${{ vars.VALORANT_REGION || 'eu' }}
         # Socials (optional)
         TWITTER_HANDLE: ${{ vars.TWITTER_HANDLE || secrets.TWITTER_HANDLE }}
         INSTAGRAM_HANDLE: ${{ vars.INSTAGRAM_HANDLE || secrets.INSTAGRAM_HANDLE }}
