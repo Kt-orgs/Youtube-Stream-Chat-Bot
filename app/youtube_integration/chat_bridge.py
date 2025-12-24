@@ -398,18 +398,7 @@ class YouTubeChatBridge:
             logger.info(f"[SELF-MESSAGE FILTER] Skipping: {message['message'][:50]}...")
             return
 
-        # If authored by our own authenticated channel, skip to prevent self-replies
-        if self.youtube.my_channel_id and message.get('author_channel_id') == self.youtube.my_channel_id:
-            logger.info(f"[SELF-MESSAGE FILTER] Skipping own channel message: {message['message'][:50]}...")
-            return
-        
-        # Also skip stats messages regardless of formatting (bold/newlines)
-        if 'stream stats' in incoming_normalized:
-            logger.info("[STATS FILTER] Skipping stream stats message")
-            return
 
-        # Skip common bot guidance messages
-        if incoming_normalized.startswith('valorantidnotfound.'):
             logger.info("[SELF-MESSAGE FILTER] Skipping Valorant guidance message")
             return
         
