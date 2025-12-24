@@ -20,33 +20,50 @@ class ValorantStatsCommand(BaseCommand):
     
     name = "val"
     aliases = ["valorant", "stats"]
-    description = "Get Valorant stats: !val stats [username] or !val rank [username]"
-    usage = "!val stats username#TAG or !val rank username#TAG"
+    description = "Get Valorant stats: !val username#TAG [region] or !val stats/rank [username#TAG] [region]"
+    usage = "!val Player#123 or !val Player#123 na (regions: na, eu, ap, latam, br, kr)"
     
     async def execute(self, context: CommandContext) -> Optional[str]:
         """Execute valorant stats command"""
         args = self.parse_args(context.message)
         
         if not args:
-            return "Usage: !val [stats|rank|agent] [username#TAG] or !val username#TAG"
+            return "Usage: !val username#TAG [region] | Regions: na, eu, ap, latam, br, kr"
         
-        # Parse command format: !val [query_type] [username#tag]
+        # Parse command format: !val [query_type] [username#tag] [region]
         query_type = "summary"
         username_tag = None
+        region = None
+        valid_regions = ["na", "eu", "ap", "latam", "br", "kr"]
         
+        # First pass: identify query type, username#tag, and optional region
         if len(args) == 1:
             # !val username#TAG
             username_tag = args[0]
-        elif len(args) >= 2:
-            # !val [stats|rank|agent] username#TAG
+        elif len(args) == 2:
+            if args[0].lower() in ["stats", "rank", "agent"]:
+                # !val [stats|rank|agent] username#TAG
+                query_type = args[0].lower()
+                username_tag = args[1]
+            elif args[1].lower() in valid_regions:
+                # !val username#TAG region
+                username_tag = args[0]
+                region = args[1].lower()
+            else:
+                username_tag = args[0]
+        elif len(args) >= 3:
+            # !val [stats|rank|agent] username#TAG [region]
             if args[0].lower() in ["stats", "rank", "agent"]:
                 query_type = args[0].lower()
                 username_tag = args[1]
-            else:
+                if args[2].lower() in valid_regions:
+                    region = args[2].lower()
+            elif args[1].lower() in valid_regions:
                 username_tag = args[0]
+                region = args[1].lower()
         
         if not username_tag or "#" not in username_tag:
-            return "Invalid format. Use: !val username#TAG (e.g., !val Player#123)"
+            return "Invalid format. Use: !val username#TAG [region] (e.g., !val Player#123 na)"
         
         # Split username and tag
         try:
@@ -54,10 +71,11 @@ class ValorantStatsCommand(BaseCommand):
         except ValueError:
             return "Invalid format. Use username#TAG"
         
-        logger.info(f"Valorant stats query from {context.author}: {username}#{tag} ({query_type})")
+        # Get region from args, profile, or default to 'eu'
+        if not region:
+            region = context.streamer_profile.get("Valorant Region", "eu") if context.streamer_profile else "eu"
         
-        # Get region from streamer profile or default to 'eu'
-        region = context.streamer_profile.get("Valorant Region", "eu") if context.streamer_profile else "eu"
+        logger.info(f"Valorant stats query from {context.author}: {username}#{tag} ({query_type}) in region {region}")
         
         # Get Valorant API instance
         api = get_valorant_api()
@@ -68,7 +86,8 @@ class ValorantStatsCommand(BaseCommand):
                 mmr_data = await api.get_mmr(region, username, tag)
                 
                 if not mmr_data:
-                    return f"❌ Could not find stats for {username}#{tag}. Check spelling and region!"
+                    # Suggest user try other regions
+                    return f"❌ {username}#{tag} not found in {region.upper()}. Try specifying region: !val {username}#{tag} na (or eu/ap/latam/br/kr)"
                 
                 # Format and return rank info
                 response = api.format_rank_response(mmr_data, username, tag)

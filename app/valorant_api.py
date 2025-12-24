@@ -78,6 +78,7 @@ class ValorantAPI:
             MMR data or None if error
         """
         url = f"{self.BASE_URL}/v2/mmr/{region}/{name}/{tag}"
+        logger.info(f"Fetching MMR for {name}#{tag} in region '{region}' from API...")
         
         try:
             async with aiohttp.ClientSession() as session:
@@ -87,10 +88,14 @@ class ValorantAPI:
                         logger.debug(f"MMR data retrieved for {name}#{tag}")
                         return data.get("data")
                     elif response.status == 404:
-                        logger.info(f"MMR not found: {name}#{tag}")
+                        logger.warning(f"MMR not found for {name}#{tag} in region '{region}'. Account may not exist or try different region (na/eu/ap/latam/br/kr)")
+                        return None
+                    elif response.status == 429:
+                        logger.warning(f"Rate limit hit on Valorant API. Try again in a moment.")
                         return None
                     else:
-                        logger.error(f"API error {response.status}: {await response.text()}")
+                        error_body = await response.text()
+                        logger.error(f"API error {response.status}: {error_body}")
                         return None
         except Exception as e:
             logger.error(f"Error fetching MMR: {e}")
