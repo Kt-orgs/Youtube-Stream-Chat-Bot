@@ -3,8 +3,11 @@ Built-in commands for YouTube Chat Bot
 """
 
 import os
+import logging
 from .command import BaseCommand, CommandContext
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 
 class HelpCommand(BaseCommand):
@@ -79,6 +82,13 @@ class SocialsCommand(BaseCommand):
     async def execute(self, context: CommandContext) -> Optional[str]:
         # Use streamer profile if available
         profile = context.streamer_profile
+        
+        # Debug logging
+        logger.info(f"[SocialsCommand] Profile type: {type(profile)}")
+        logger.info(f"[SocialsCommand] Profile keys: {list(profile.keys()) if profile else 'None'}")
+        if profile:
+            logger.info(f"[SocialsCommand] Twitter={profile.get('Twitter')}, Instagram={profile.get('Instagram')}, Discord={profile.get('Discord')}")
+        
         # Fall back to environment variables when profile is missing socials
         env_twitter = os.getenv("TWITTER_HANDLE")
         env_instagram = os.getenv("INSTAGRAM_HANDLE")
