@@ -32,8 +32,9 @@ VALORANT_AGENTS = [
 VALORANT_REGIONS = ["ap", "na", "eu", "kr", "latam", "br"]
 
 # Compiled regex patterns
+# Matches: "my id is Name#Tag", "id: Name#Tag", "rank for Name#Tag", or just "Name#Tag"
 VALORANT_ID_PATTERN = re.compile(
-    r'(?:my\s+id\s+is|id:|riot\s+id\s+is|valorant\s+id\s+is)\s*([a-zA-Z0-9]+)#([a-zA-Z0-9]+)',
+    r'(?:(?:my\s+id\s+is|id:|riot\s+id\s+is|valorant\s+id\s+is|for)\s*)?([a-zA-Z0-9 ]+)#([a-zA-Z0-9]+)',
     re.IGNORECASE
 )
 
