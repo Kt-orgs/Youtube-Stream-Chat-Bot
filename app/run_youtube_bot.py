@@ -42,26 +42,26 @@ def get_streamer_profile():
             
             # Backward compatibility check for Is Gaming
             if 'Is Gaming' not in profile:
-                    print("\n[Update] Stream Configuration")
-                    is_gaming = input("Is this a gaming stream? (yes/no): ").strip().lower().startswith('y')
-                    profile['Is Gaming'] = is_gaming
-                    
-                    if is_gaming:
-                        if 'Valorant ID' not in profile:
-                            # Check if they play Valorant
-                            game = input("What game do you primarily play? ").strip()
-                            if 'valorant' in game.lower():
-                                profile['Valorant ID'] = input("Enter your Valorant ID (Name#Tag): ").strip()
-                                profile['Valorant Region'] = input("Enter your Valorant Region (ap, na, eu, kr, latam, br) [default: eu]: ").strip() or 'eu'
-                    else:
-                        if 'Stream Topic' not in profile:
-                            profile['Stream Topic'] = input("What is your usual stream topic? ").strip()
-                    
-                    with open(PROFILE_FILE, 'w') as f_out:
-                        json.dump(profile, f_out, indent=4)
-                            
-                print(f"Loaded streamer profile for: {profile.get('Name', 'Unknown')}")
-                return profile
+                print("\n[Update] Stream Configuration")
+                is_gaming = input("Is this a gaming stream? (yes/no): ").strip().lower().startswith('y')
+                profile['Is Gaming'] = is_gaming
+                
+                if is_gaming:
+                    if 'Valorant ID' not in profile:
+                        # Check if they play Valorant
+                        game = input("What game do you primarily play? ").strip()
+                        if 'valorant' in game.lower():
+                            profile['Valorant ID'] = input("Enter your Valorant ID (Name#Tag): ").strip()
+                            profile['Valorant Region'] = input("Enter your Valorant Region (ap, na, eu, kr, latam, br) [default: eu]: ").strip() or 'eu'
+                else:
+                    if 'Stream Topic' not in profile:
+                        profile['Stream Topic'] = input("What is your usual stream topic? ").strip()
+                
+                with open(PROFILE_FILE, 'w') as f_out:
+                    json.dump(profile, f_out, indent=4)
+                        
+            print(f"Loaded streamer profile for: {profile.get('Name', 'Unknown')}")
+            return profile
         except Exception as e:
             print(f"Error loading profile: {e}")
     
