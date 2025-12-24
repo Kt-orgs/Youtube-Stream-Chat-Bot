@@ -14,12 +14,31 @@ on:
         required: false
         type: string
 
+concurrency:
+  group: youtube-bot-run
+  cancel-in-progress: false
+
 jobs:
   check-and-run-bot:
     runs-on: ubuntu-latest
     timeout-minutes: 240  # 4 hours max
     
     steps:
+    - name: Check if another run is already in progress
+      run: |
+        # Get all in-progress runs for this workflow
+        RUNS=$(gh run list --workflow=youtube-bot.yml --status=in_progress --json databaseId --jq 'length')
+        
+        # If there's more than 1 run in progress (current + others), skip
+        if [ "$RUNS" -gt 1 ]; then
+          echo "❌ Another bot run is already in progress. Skipping this scheduled run."
+          exit 0
+        fi
+        
+        echo "✅ No other runs in progress. Proceeding..."
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
     - name: Checkout code
       uses: actions/checkout@v4
     
