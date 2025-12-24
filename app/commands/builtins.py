@@ -2,6 +2,7 @@
 Built-in commands for YouTube Chat Bot
 """
 
+import os
 from .command import BaseCommand, CommandContext
 from typing import Optional
 
@@ -78,16 +79,29 @@ class SocialsCommand(BaseCommand):
     async def execute(self, context: CommandContext) -> Optional[str]:
         # Use streamer profile if available
         profile = context.streamer_profile
+        # Fall back to environment variables when profile is missing socials
+        env_twitter = os.getenv("TWITTER_HANDLE")
+        env_instagram = os.getenv("INSTAGRAM_HANDLE")
+        env_discord = os.getenv("DISCORD_INVITE")
+        env_twitch = os.getenv("TWITCH_URL")
         
         socials = []
         if profile.get("Twitter"):
             socials.append(f"Twitter: {profile['Twitter']}")
+        elif env_twitter:
+            socials.append(f"Twitter: {env_twitter}")
         if profile.get("Instagram"):
             socials.append(f"Instagram: {profile['Instagram']}")
+        elif env_instagram:
+            socials.append(f"Instagram: {env_instagram}")
         if profile.get("Discord"):
             socials.append(f"Discord: {profile['Discord']}")
+        elif env_discord:
+            socials.append(f"Discord: {env_discord}")
         if profile.get("Twitch"):
             socials.append(f"Twitch: {profile['Twitch']}")
+        elif env_twitch:
+            socials.append(f"Twitch: {env_twitch}")
         
         if socials:
             return "Follow the streamer: " + " | ".join(socials)
