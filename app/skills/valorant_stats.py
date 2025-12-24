@@ -31,6 +31,8 @@ class ValorantStatsSkill(BaseSkill):
         valorant_id = profile.get("Valorant ID", None)
         region = profile.get("Valorant Region", "eu")
         
+        logger.info(f"[ValorantStatsSkill] Profile Valorant ID: {valorant_id}, Region: {region}")
+        
         # Try to extract Valorant ID from message if present
         msg = message.lower()
         match = VALORANT_ID_PATTERN.search(message)
@@ -39,9 +41,10 @@ class ValorantStatsSkill(BaseSkill):
             logger.info(f"Extracted Valorant ID from message: {username}#{tag}")
         elif valorant_id and "#" in valorant_id:
             username, tag = valorant_id.split("#", 1)
+            logger.info(f"Using streamer's Valorant ID from profile: {username}#{tag}")
         else:
-            logger.warning(f"No Valorant ID found for user {author}")
-            return "Valorant ID not found. Please provide your ID in the format Name#Tag."
+            logger.warning(f"No Valorant ID in message or profile. Profile ID = {valorant_id}")
+            return "Valorant ID not found. Use !val YourName#TAG or set streamer Valorant ID in profile."
         
         stats = None
         # KD or aces
