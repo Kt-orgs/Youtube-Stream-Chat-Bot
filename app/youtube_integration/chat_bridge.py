@@ -271,38 +271,10 @@ class YouTubeChatBridge:
         
         intro_task = asyncio.create_task(post_intro_after_delay())
         
-        # Start periodic stats poster
-        async def post_stats_periodically():
-            # Wait 15 minutes before posting first stats
-            await asyncio.sleep(900)
-            while self.is_running:
-                try:
-                    stats = self.youtube.get_stream_stats()
-                    if stats:
-                        msg = (
-                            f"📊 Stream Stats: {stats['viewer_count']} watching, {stats['likes']} likes, {stats['subs']} subs! "
-                            f"If you're enjoying the stream, don't forget to like 👍 and subscribe ❤️ for more content!"
-                        )
-                        # Add to cache BEFORE posting to prevent race condition (normalized)
-                        self.recent_bot_messages.append(self._normalize_text(msg))
-                        
-                        message_id = self.youtube.post_message(msg)
-                        if message_id:
-                            # Pre-emptively add to processed messages before it appears in chat
-                            self.processed_messages.add(message_id)
-                            self.save_message_id(message_id)
-                            logger.info(f"[Periodic Stats] Posted (ID: {message_id}): {msg[:80]}...")
-                        else:
-                            logger.warning("Failed to post periodic stats message")
-                    else:
-                        logger.warning("Could not fetch stream stats for periodic post.")
-                except Exception as e:
-                    logger.error(f"Error in periodic stats poster: {e}")
-                await asyncio.sleep(900)  # 15 minutes between stats
-
-        # Start the periodic stats poster as a background task
-        stats_task = asyncio.create_task(post_stats_periodically())
-
+        # QUOTA OPTIMIZATION: Periodic stats disabled - use !stats command instead
+        # This saves ~600-4,800 units/day depending on frequency
+        logger.info("[QUOTA SAVER] Periodic stats disabled. Use !stats command to get current stats.")
+        
         # Track last stream status check
         last_stream_check = time.time()
         stream_check_interval = 60  # Check every 60 seconds
@@ -356,14 +328,6 @@ class YouTubeChatBridge:
                 logger.error(f"Error in chat bridge loop: {e}")
                 await asyncio.sleep(5)
         
-        # Cancel the stats task
-        if 'stats_task' in locals():
-            stats_task.cancel()
-            try:
-                await stats_task
-            except asyncio.CancelledError:
-                pass
-        
         # Cancel the intro task
         if 'intro_task' in locals():
             intro_task.cancel()
@@ -371,6 +335,8 @@ class YouTubeChatBridge:
                 await intro_task
             except asyncio.CancelledError:
                 pass
+        
+        # Note: stats_task removed as part of quota optimization - use !stats command instead
         
         # End analytics session when stopping
         self.analytics.end_session()

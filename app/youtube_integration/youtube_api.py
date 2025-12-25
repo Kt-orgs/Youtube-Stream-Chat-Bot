@@ -56,6 +56,11 @@ class YouTubeLiveChatAPI:
         self.processed_message_ids = set()
         self.my_channel_id = None
         
+        # Cache for stream stats to reduce API calls
+        self.stats_cache = None
+        self.stats_cache_time = 0
+        self.stats_cache_ttl = 300  # Cache for 5 minutes
+        
     def authenticate(self):
         """Performs OAuth 2.0 authentication"""
         creds = None
@@ -332,6 +337,10 @@ class YouTubeLiveChatAPI:
             return response.get('id')
             
         except HttpError as e:
+            # Handle quota exceeded error gracefully
+            if e.resp.status == 403 and 'quotaExceeded' in str(e):
+                logger.error("YOUTUBE API QUOTA EXCEEDED - Cannot post messages. Bot will continue reading messages via pytchat.")
+                return None
             logger.error(f"Error posting message: {e}")
             return None
     
@@ -398,14 +407,22 @@ class YouTubeLiveChatAPI:
             # Return True on error to avoid premature shutdown
             return True
     
-    def get_stream_stats(self, video_id: str = None) -> Optional[Dict[str, int]]:
+    def get_stream_stats(self, video_id: str = None, use_cache: bool = True) -> Optional[Dict[str, int]]:
         """
         Get current stream stats: viewer count, likes, and subs
         Args:
             video_id: YouTube video ID (optional, uses current broadcast if not provided)
+            use_cache: If True, return cached stats if available (default: True, saves quota)
         Returns:
             Dict with 'viewer_count', 'likes', 'subs' or None if error
         """
+        # Check cache first to save API quota
+        if use_cache and self.stats_cache is not None:
+            cache_age = time.time() - self.stats_cache_time
+            if cache_age < self.stats_cache_ttl:
+                logger.debug(f"Returning cached stats (age: {cache_age:.0f}s)")
+                return self.stats_cache
+        
         try:
             # If no video_id provided, get current broadcast
             if video_id is None:
@@ -436,11 +453,17 @@ class YouTubeLiveChatAPI:
                 if channel_resp.get('items'):
                     subs = int(channel_resp['items'][0]['statistics'].get('subscriberCount', 0))
             logger.debug(f"Stream stats - Viewers: {viewer_count}, Likes: {likes}, Subs: {subs}")
-            return {
+            
+            # Update cache
+            result = {
                 'viewer_count': viewer_count,
                 'likes': likes,
                 'subs': subs if subs is not None else 0
             }
+            self.stats_cache = result
+            self.stats_cache_time = time.time()
+            
+            return result
         except Exception as e:
             logger.error(f"Error getting stream stats: {e}")
             return None
