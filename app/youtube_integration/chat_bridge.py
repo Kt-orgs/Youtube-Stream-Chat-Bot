@@ -179,6 +179,24 @@ class YouTubeChatBridge:
         self.growth_feature_interval = 30  # Check growth features every 30 seconds
         self.last_growth_check = 0
         
+    def _initialize_follower_count(self):
+        """Initialize follower count from YouTube API on startup"""
+        try:
+            logger.info("Fetching initial follower count from YouTube...")
+            stats = self.youtube.get_stream_stats(use_cache=False)
+            if stats and stats.get('subs') and stats['subs'] > 0:
+                self.growth.update_follower_count(stats['subs'])
+                logger.info(f"Initialized follower count: {stats['subs']}")
+            else:
+                logger.warning("Could not fetch real-time subscriber count - check YouTube API permissions")
+                # Check if we have a saved count from previous run
+                if self.growth.current_followers > 0:
+                    logger.info(f"Using previously saved follower count: {self.growth.current_followers}")
+                else:
+                    logger.warning("No follower count available - set manually with !setgoal command")
+        except Exception as e:
+            logger.error(f"Error initializing follower count: {e}")
+        
     def load_history(self) -> set:
         """Load processed message IDs from file"""
         if os.path.exists(self.history_file):
@@ -906,5 +924,8 @@ async def run_youtube_chat_bot(
         bot_name=bot_name,
         bot_username=bot_username
     )
+    
+    # Initialize follower count from YouTube
+    bridge._initialize_follower_count()
     
     await bridge.start()

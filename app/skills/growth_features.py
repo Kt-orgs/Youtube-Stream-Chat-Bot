@@ -43,9 +43,10 @@ class GrowthFeatures:
                 with open(self.CONFIG_FILE, 'r') as f:
                     config = json.load(f)
                     self.follower_goal = config.get('follower_goal', 2000)
+                    self.current_followers = config.get('current_followers', 0)
                     self.challenge_config = config.get('challenge', {})
                     self.new_viewers = set(config.get('new_viewers', []))
-                    logger.info(f"Loaded growth config: goal={self.follower_goal}")
+                    logger.info(f"Loaded growth config: goal={self.follower_goal}, followers={self.current_followers}")
             except Exception as e:
                 logger.error(f"Error loading growth config: {e}")
     
@@ -54,6 +55,7 @@ class GrowthFeatures:
         try:
             config = {
                 'follower_goal': self.follower_goal,
+                'current_followers': self.current_followers,
                 'challenge': self.challenge_config,
                 'new_viewers': list(self.new_viewers)
             }
@@ -70,7 +72,10 @@ class GrowthFeatures:
     
     def update_follower_count(self, current_followers: int):
         """Update current follower count"""
-        self.current_followers = current_followers
+        if current_followers > 0:
+            self.current_followers = current_followers
+            self.save_config()
+            logger.info(f"Updated follower count to {current_followers}")
     
     def is_new_viewer(self, username: str) -> bool:
         """Check if viewer is chatting for first time"""

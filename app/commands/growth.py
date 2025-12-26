@@ -139,3 +139,33 @@ class CancelChallengeCommand(BaseCommand):
         growth.challenge_active = False
         growth.save_config()
         return "Challenge cancelled!"
+
+
+class SetCurrentFollowersCommand(BaseCommand):
+    """Set the current follower count"""
+    
+    name = "setfollowers"
+    aliases = ["followers", "setcurrentfollowers"]
+    description = "Set current follower count (e.g., !setfollowers 1234)"
+    usage = "!setfollowers <number>"
+    
+    async def execute(self, context: CommandContext) -> Optional[str]:
+        """Execute the command"""
+        if not context.message.startswith("!"):
+            return None
+        
+        parts = context.message.split()
+        if len(parts) < 2:
+            return "Usage: !setfollowers <number> (e.g., !setfollowers 1234)"
+        
+        try:
+            followers = int(parts[1])
+            if followers < 0:
+                return "Followers must be a non-negative number!"
+            
+            growth = get_growth_features()
+            growth.update_follower_count(followers)
+            remaining = max(0, growth.follower_goal - followers)
+            return f"👍 Current followers set to {followers}. {remaining} away from goal of {growth.follower_goal}!"
+        except ValueError:
+            return f"'{parts[1]}' is not a valid number!"
