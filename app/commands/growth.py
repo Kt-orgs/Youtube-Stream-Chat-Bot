@@ -40,7 +40,9 @@ class SetFollowerGoalCommand(BaseCommand):
             
             growth = get_growth_features()
             growth.set_follower_goal(goal)
-            return f"📈 Follower goal set to {goal}! Let's reach it together! 💪"
+            
+            # Return the progress announcement immediately
+            return growth.get_follower_progress()
         except ValueError:
             return f"'{parts[1]}' is not a valid number!"
 

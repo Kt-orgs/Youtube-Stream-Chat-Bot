@@ -358,8 +358,8 @@ class YouTubeChatBridge:
                 if current_time - self.last_growth_check >= self.growth_feature_interval:
                     self.last_growth_check = current_time
                     
-                    # Check for follower goal progress announcement
-                    if self.growth.should_announce_follower_progress(announcement_interval_minutes=60):
+                    # Check for follower goal progress announcement (every 30 minutes)
+                    if self.growth.should_announce_follower_progress(announcement_interval_minutes=30):
                         progress_msg = self.growth.get_follower_progress()
                         try:
                             msg_id = self.youtube.post_message(progress_msg)
