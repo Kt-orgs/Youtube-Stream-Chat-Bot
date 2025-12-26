@@ -15,6 +15,7 @@ from google.adk import events
 from .youtube_api import YouTubeLiveChatAPI
 try:
     from app.skills import SkillRegistry, GreetingSkill, CommunityEngagementSkill, AICoHostSkill, FunnyHypeSkill, SmartGamingAssistantSkill, GrowthBoosterSkill
+    from app.skills.growth_features import get_growth_features
     from app.constants import GREETING_WORDS, HYPE_TRIGGERS, SPECS_KEYWORDS, HELP_KEYWORDS, QUESTION_MARKERS
     from app.logger import get_logger
     from app.commands import (
@@ -23,9 +24,14 @@ try:
         ValorantStatsCommand, ValorantAgentCommand, ValorantMapCommand,
         ViewersCommand, LeaderboardCommand, TopChattersCommand, BotStatsCommand, ExportCommand
     )
+    from app.commands.growth import (
+        SetFollowerGoalCommand, StartChallengeCommand, ViewGrowthStatsCommand, 
+        ChallengeProgressCommand, CancelChallengeCommand
+    )
     from app.analytics import get_analytics_tracker
 except ImportError:
     from skills import SkillRegistry, GreetingSkill, CommunityEngagementSkill, AICoHostSkill, FunnyHypeSkill, SmartGamingAssistantSkill, GrowthBoosterSkill
+    from skills.growth_features import get_growth_features
     from constants import GREETING_WORDS, HYPE_TRIGGERS, SPECS_KEYWORDS, HELP_KEYWORDS, QUESTION_MARKERS
     from logger import get_logger
     from commands import (
@@ -33,6 +39,10 @@ except ImportError:
         HelpCommand, PingCommand, UptimeCommand, SocialsCommand, StatusCommand,
         ValorantStatsCommand, ValorantAgentCommand, ValorantMapCommand,
         ViewersCommand, LeaderboardCommand, TopChattersCommand, BotStatsCommand, ExportCommand
+    )
+    from commands.growth import (
+        SetFollowerGoalCommand, StartChallengeCommand, ViewGrowthStatsCommand, 
+        ChallengeProgressCommand, CancelChallengeCommand
     )
     from analytics import get_analytics_tracker
 
@@ -121,6 +131,12 @@ class YouTubeChatBridge:
         self.command_parser.register(TopChattersCommand())
         self.command_parser.register(BotStatsCommand())
         self.command_parser.register(ExportCommand())
+        # Growth features commands
+        self.command_parser.register(SetFollowerGoalCommand())
+        self.command_parser.register(StartChallengeCommand())
+        self.command_parser.register(ViewGrowthStatsCommand())
+        self.command_parser.register(ChallengeProgressCommand())
+        self.command_parser.register(CancelChallengeCommand())
         logger.debug(f"Registered {len(self.command_parser.get_all_commands())} commands")
         
         # Persistence for processed messages
@@ -157,6 +173,11 @@ class YouTubeChatBridge:
         self.analytics = get_analytics_tracker()
         self.viewer_snapshot_interval = 60  # Track viewers every 60 seconds
         self.last_viewer_snapshot = 0
+        
+        # Growth features
+        self.growth = get_growth_features()
+        self.growth_feature_interval = 30  # Check growth features every 30 seconds
+        self.last_growth_check = 0
         
     def load_history(self) -> set:
         """Load processed message IDs from file"""
@@ -315,6 +336,37 @@ class YouTubeChatBridge:
                         break
                     last_stream_check = current_time
                 
+                # Check for periodic growth feature announcements
+                if current_time - self.last_growth_check >= self.growth_feature_interval:
+                    self.last_growth_check = current_time
+                    
+                    # Check for follower goal progress announcement
+                    if self.growth.should_announce_follower_progress(announcement_interval_minutes=60):
+                        progress_msg = self.growth.get_follower_progress()
+                        try:
+                            msg_id = self.youtube.post_message(progress_msg)
+                            if msg_id:
+                                self.processed_messages.add(msg_id)
+                                self.save_message_id(msg_id)
+                                self.recent_bot_messages.append(self._normalize_text(progress_msg))
+                                logger.info(f"[FOLLOWER PROGRESS]: {progress_msg}")
+                        except Exception as e:
+                            logger.warning(f"Failed to post follower progress: {e}")
+                    
+                    # Check for viewer callout
+                    if self.growth.should_do_viewer_callout(callout_interval_minutes=30):
+                        callout_msg = self.growth.get_active_viewer_callout()
+                        if callout_msg:
+                            try:
+                                msg_id = self.youtube.post_message(callout_msg)
+                                if msg_id:
+                                    self.processed_messages.add(msg_id)
+                                    self.save_message_id(msg_id)
+                                    self.recent_bot_messages.append(self._normalize_text(callout_msg))
+                                    logger.info(f"[VIEWER CALLOUT]: {callout_msg}")
+                            except Exception as e:
+                                logger.warning(f"Failed to post viewer callout: {e}")
+                
                 # Fetch new messages using pytchat
                 for c in chat.get().sync_items():
                     # Convert pytchat message to our format
@@ -339,6 +391,10 @@ class YouTubeChatBridge:
                                 stats.get('viewer_count', 0),
                                 stats.get('likes', 0)
                             )
+                            # Update growth features with current follower/subscriber count
+                            subscriber_count = stats.get('subs', 0)
+                            if subscriber_count > 0:
+                                self.growth.update_follower_count(subscriber_count)
                             self.last_viewer_snapshot = current_time
                     except Exception as e:
                         logger.error(f"Error tracking viewer count: {e}")
@@ -446,6 +502,18 @@ class YouTubeChatBridge:
         
         logger.info(f"[{author}]: {text}")
         
+        # ========== TRACK GROWTH FEATURES ==========
+        # Check if this is a new viewer and generate welcome
+        is_new_viewer = self.growth.is_new_viewer(author)
+        if is_new_viewer:
+            welcome_message = self.growth.get_new_viewer_welcome(author)
+            logger.info(f"[NEW VIEWER WELCOME]: {welcome_message}")
+            # We'll post this after the main message processing
+            # Store it to send after response (if any) to avoid message flooding
+        
+        # Track message for activity
+        self.growth.track_message(author)
+        
         # Track message in analytics
         is_command = text.startswith("!")
         command_name = None
@@ -532,6 +600,17 @@ class YouTubeChatBridge:
                 logger.info(f"[BOT]: {response_with_signature}")
             else:
                 logger.warning("Failed to post response")
+        
+        # 5. POST NEW VIEWER WELCOME (if applicable)
+        if is_new_viewer:
+            await asyncio.sleep(self.response_delay)
+            welcome_message = self.growth.get_new_viewer_welcome(author)
+            welcome_msg_id = self.youtube.post_message(welcome_message)
+            if welcome_msg_id:
+                self.processed_messages.add(welcome_msg_id)
+                self.save_message_id(welcome_msg_id)
+                self.recent_bot_messages.append(self._normalize_text(welcome_message))
+                logger.info(f"[NEW VIEWER WELCOME]: {welcome_message}")
     
     def should_respond_to_message(self, message: str) -> bool:
         """
@@ -613,6 +692,18 @@ class YouTubeChatBridge:
         # 4. Direct Questions about the streamer/bot (only questions that clearly need answering)
         # Must start with question word to be "direct"
         if '?' in msg_lower:
+            # IMPORTANT: Check if question is about another viewer (e.g., "How are you Rambo?")
+            # Pattern: Question word + "you/your" + a person's name (not bot name)
+            person_name_pattern = r'^(how|what|why|kaise|kya|kyun)\s+.*\s+(are|is|do)\s+you\s+(\w+)'
+            person_match = re.search(person_name_pattern, msg_lower)
+            if person_match:
+                mentioned_name = person_match.group(4)  # Get the name after "you"
+                bot_names_set = {'loki', 'bot', 'host', 'streamer', self.bot_name.lower()}
+                # If the name is NOT the bot, it's a viewer-to-viewer question
+                if mentioned_name.lower() not in bot_names_set:
+                    logger.debug(f"Question to another viewer '{mentioned_name}': {message[:30]}...")
+                    return False
+            
             # Question word patterns - must be at the very START
             direct_question_patterns = [
                 r'^(what|kya|kyaa)\s+.*(you|your|bot|loki|' + self.bot_name.lower() + r'|streak|setup)',
