@@ -4,7 +4,7 @@ Commands for managing follower goals, community challenges, etc.
 """
 
 from typing import Optional
-from app.commands.command import Command, CommandContext
+from app.commands.command import BaseCommand, CommandContext
 
 try:
     from app.logger import get_logger
@@ -16,16 +16,13 @@ except ImportError:
 logger = get_logger(__name__)
 
 
-class SetFollowerGoalCommand(Command):
+class SetFollowerGoalCommand(BaseCommand):
     """Set the follower goal target"""
     
-    def __init__(self):
-        super().__init__(
-            name="setgoal",
-            aliases=["goal"],
-            description="Set follower goal (e.g., !setgoal 2000)",
-            usage="!setgoal <number>"
-        )
+    name = "setgoal"
+    aliases = ["goal"]
+    description = "Set follower goal (e.g., !setgoal 2000)"
+    usage = "!setgoal <number>"
     
     async def execute(self, context: CommandContext) -> Optional[str]:
         """Execute the command"""
@@ -48,16 +45,13 @@ class SetFollowerGoalCommand(Command):
             return f"'{parts[1]}' is not a valid number!"
 
 
-class StartChallengeCommand(Command):
+class StartChallengeCommand(BaseCommand):
     """Start a community challenge"""
     
-    def __init__(self):
-        super().__init__(
-            name="challenge",
-            aliases=["startchallenge"],
-            description="Start a community challenge (e.g., !challenge 500 do 50 pushups)",
-            usage="!challenge <message_count> <reward_text>"
-        )
+    name = "challenge"
+    aliases = ["startchallenge"]
+    description = "Start a community challenge (e.g., !challenge 500 do 50 pushups)"
+    usage = "!challenge <message_count> <reward_text>"
     
     async def execute(self, context: CommandContext) -> Optional[str]:
         """Execute the command"""
@@ -82,16 +76,13 @@ class StartChallengeCommand(Command):
             return f"'{parts[1]}' is not a valid number!"
 
 
-class ViewGrowthStatsCommand(Command):
+class ViewGrowthStatsCommand(BaseCommand):
     """View growth stats"""
     
-    def __init__(self):
-        super().__init__(
-            name="growthstats",
-            aliases=["gstats"],
-            description="View growth statistics",
-            usage="!growthstats"
-        )
+    name = "growthstats"
+    aliases = ["gstats"]
+    description = "View growth statistics"
+    usage = "!growthstats"
     
     async def execute(self, context: CommandContext) -> Optional[str]:
         """Execute the command"""
@@ -115,16 +106,13 @@ class ViewGrowthStatsCommand(Command):
         return " | ".join(lines)
 
 
-class ChallengeProgressCommand(Command):
+class ChallengeProgressCommand(BaseCommand):
     """Check challenge progress"""
     
-    def __init__(self):
-        super().__init__(
-            name="challengeprogress",
-            aliases=["cprogress"],
-            description="Check current challenge progress",
-            usage="!challengeprogress"
-        )
+    name = "challengeprogress"
+    aliases = ["cprogress"]
+    description = "Check current challenge progress"
+    usage = "!challengeprogress"
     
     async def execute(self, context: CommandContext) -> Optional[str]:
         """Execute the command"""
@@ -137,16 +125,13 @@ class ChallengeProgressCommand(Command):
         return "No active challenge right now!"
 
 
-class CancelChallengeCommand(Command):
+class CancelChallengeCommand(BaseCommand):
     """Cancel current challenge"""
     
-    def __init__(self):
-        super().__init__(
-            name="cancelchallenge",
-            aliases=["stopchallenge"],
-            description="Cancel the current challenge",
-            usage="!cancelchallenge"
-        )
+    name = "cancelchallenge"
+    aliases = ["stopchallenge"]
+    description = "Cancel the current challenge"
+    usage = "!cancelchallenge"
     
     async def execute(self, context: CommandContext) -> Optional[str]:
         """Execute the command"""
