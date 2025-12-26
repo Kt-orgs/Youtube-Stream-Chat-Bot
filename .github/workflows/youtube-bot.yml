@@ -122,6 +122,9 @@ jobs:
         HENRIK_DEV_API_KEY: ${{ secrets.HENRIK_DEV_API_KEY }}
         AGENT_NAME: youtube_chat_advanced
         YOUTUBE_VIDEO_ID: ${{ inputs.video_id }}
+        # Bot configuration
+        BOT_NAME: ${{ vars.BOT_NAME || 'ValoMate' }}
+        BOT_USERNAME: ${{ vars.BOT_USERNAME || vars.BOT_NAME || 'ValoMate' }}
         # Streamer profile env vars
         STREAMER_NAME: ${{ vars.STREAMER_NAME || 'Streamer' }}
         VALORANT_ID: ${{ vars.VALORANT_ID || secrets.VALORANT_ID }}

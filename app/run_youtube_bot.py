@@ -219,6 +219,22 @@ def main():
         default_topic = streamer_profile.get('Stream Topic', '')
         stream_topic = input(f"What is the topic of today's stream? [{default_topic}]: ").strip() or default_topic
         logger.info(f"Topic: {stream_topic}")
+    
+    # Get Bot Name
+    default_bot_name = os.environ.get('BOT_NAME', 'ValoMate')
+    if os.environ.get('GITHUB_ACTIONS') == 'true':
+        bot_name = default_bot_name
+    else:
+        bot_name = input(f"What is your bot's name? [{default_bot_name}]: ").strip() or default_bot_name
+    logger.info(f"Bot Name: {bot_name}")
+    
+    # Get Bot Username (signature for responses)
+    default_bot_username = os.environ.get('BOT_USERNAME', default_bot_name)
+    if os.environ.get('GITHUB_ACTIONS') == 'true':
+        bot_username = default_bot_username
+    else:
+        bot_username = input(f"What username should the bot use in chat messages? [{default_bot_username}]: ").strip() or default_bot_username
+    logger.info(f"Bot Username/Signature: {bot_username}")
         
     logger.info("-" * 40)
     
@@ -227,6 +243,8 @@ def main():
     logger.info("=" * 60)
     logger.info(f"Video ID: {video_id}")
     logger.info(f"Agent: {agent_name}")
+    logger.info(f"Bot Name: {bot_name}")
+    logger.info(f"Bot Username (signature): {bot_username}")
     if current_game:
         logger.info(f"Game: {current_game}")
     if stream_topic:
@@ -243,7 +261,9 @@ def main():
             agent_name=agent_name,
             streamer_profile=streamer_profile,
             current_game=current_game,
-            stream_topic=stream_topic
+            stream_topic=stream_topic,
+            bot_name=bot_name,
+            bot_username=bot_username
         ))
         logger.info("\n\nBot completed - stream ended")
         return 0

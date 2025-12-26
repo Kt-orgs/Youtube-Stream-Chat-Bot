@@ -51,7 +51,10 @@ class YouTubeChatBridge:
         stream_topic: Optional[str] = None,
         response_delay: float = 2.0,
         ignore_moderators: bool = False,
-        ignore_owner: bool = False
+        ignore_owner: bool = False,
+        require_mention: bool = False,
+        bot_name: str = "ValoMate",
+        bot_username: str = "ValoMate"
     ):
         """
         Initialize the chat bridge
@@ -65,6 +68,9 @@ class YouTubeChatBridge:
             response_delay: Delay in seconds before responding (to avoid spam)
             ignore_moderators: If True, don't respond to moderator messages
             ignore_owner: If True, don't respond to channel owner messages
+            require_mention: If True, bot only responds if directly mentioned (more conservative)
+            bot_name: Name of the bot to use in messages (default: ValoMate)
+            bot_username: Custom username/signature for bot messages (default: ValoMate)
         """
         # Initialize API with OAuth support (for posting only)
         self.youtube = YouTubeLiveChatAPI()
@@ -76,6 +82,9 @@ class YouTubeChatBridge:
         self.response_delay = response_delay
         self.ignore_moderators = ignore_moderators
         self.ignore_owner = ignore_owner
+        self.require_mention = require_mention  # More conservative response mode
+        self.bot_name = bot_name  # Bot's unique name/persona
+        self.bot_username = bot_username  # Customizable username signature for responses
         self.is_running = False
 
         # Store context for skills
@@ -128,6 +137,21 @@ class YouTubeChatBridge:
             except Exception:
                 return s
         self._normalize_text = _normalize_text
+        
+        # Helper: append bot signature to responses
+        def _append_bot_signature(message: str) -> str:
+            """Append bot username signature to the message"""
+            if not message:
+                return message
+            # Check if message is already too long after adding signature
+            signature = f" - {self.bot_username}"
+            total_length = len(message) + len(signature)
+            if total_length > 200:
+                # Truncate message to make room for signature
+                available = 200 - len(signature)
+                return message[:available].rstrip() + signature
+            return message + signature
+        self._append_bot_signature = _append_bot_signature
         
         # Analytics tracker
         self.analytics = get_analytics_tracker()
@@ -249,7 +273,7 @@ class YouTubeChatBridge:
                     return
 
                 intro_msg = (
-                    "🤖 Bot by LOKI here! Ask me anything. Try !help, !stats, !ping, !uptime, !socials, !status"
+                    f"🤖 {self.bot_name} here! Ask me anything. Try !help, !stats, !ping, !uptime, !socials, !status"
                 )
                 try:
                     message_id = self.youtube.post_message(intro_msg)
@@ -301,7 +325,8 @@ class YouTubeChatBridge:
                         'message': c.message,
                         'timestamp': c.datetime,
                         'is_moderator': c.author.isChatModerator,
-                        'is_owner': c.author.isChatOwner
+                        'is_owner': c.author.isChatOwner,
+                        'type': 'text'  # pytchat only provides text messages
                     }
                     await self.process_message(msg_data)
                 
@@ -345,7 +370,7 @@ class YouTubeChatBridge:
     
     async def process_message(self, message: dict):
         """
-        Process a single chat message
+        Process a single chat message or special event (like membership)
         
         Args:
             message: Message dictionary from YouTube API
@@ -358,6 +383,44 @@ class YouTubeChatBridge:
         self.processed_messages.add(message['id'])
         self.save_message_id(message['id'])
         
+        # ========== HANDLE MEMBERSHIP EVENTS ==========
+        # Check if this is a membership/subscription event
+        if message.get('type') == 'membership':
+            author = message['author']
+            logger.info(f"🎉 [NEW MEMBER] {author} just subscribed!")
+            
+            # Generate thank you message for new subscriber
+            thank_you_messages = [
+                f"🎉 Welcome to the channel {author}! Thanks for subscribing! - {self.bot_name}",
+                f"Thanks for the support {author}! Welcome to the community! 💪 - {self.bot_name}",
+                f"Amazing! {author} just joined as a member! Thanks so much! 🙌 - {self.bot_name}",
+                f"Huge thanks {author} for the subscription! 🔥 - {self.bot_name}",
+            ]
+            
+            import random
+            response = random.choice(thank_you_messages)
+            
+            # Post thank you message
+            await asyncio.sleep(self.response_delay)
+            message_id = self.youtube.post_message(response)
+            if message_id:
+                self.processed_messages.add(message_id)
+                self.save_message_id(message_id)
+                self.recent_bot_messages.append(self._normalize_text(response))
+                logger.info(f"[BOT - THANK YOU]: {response}")
+            
+            # Track in analytics
+            self.analytics.track_message(
+                message['id'],
+                author,
+                message['author_channel_id'],
+                f"[MEMBERSHIP] Subscribed",
+                False,
+                None
+            )
+            return  # Exit early, no further processing needed
+        
+        # ========== HANDLE REGULAR TEXT MESSAGES ==========
         # Check if this message matches something the bot recently sent
         # Normalize to avoid mismatches due to formatting/newlines removed by YouTube/pytchat
         incoming_normalized = self._normalize_text(message['message'])
@@ -453,17 +516,20 @@ class YouTubeChatBridge:
 
         # 4. If we have a response from any source, post it
         if response:
+            # Add bot signature/username to the response
+            response_with_signature = self._append_bot_signature(response)
+            
             # Add delay to avoid spam
             await asyncio.sleep(self.response_delay)
             # Post response to YouTube chat
-            message_id = self.youtube.post_message(response)
+            message_id = self.youtube.post_message(response_with_signature)
             if message_id:
                 # Add the bot's own message ID to processed messages so we don't reply to it
                 self.processed_messages.add(message_id)
                 self.save_message_id(message_id)
                 # Add text to recent messages cache (normalized) to avoid self-replies via pytchat
-                self.recent_bot_messages.append(self._normalize_text(response))
-                logger.info(f"[BOT]: {response}")
+                self.recent_bot_messages.append(self._normalize_text(response_with_signature))
+                logger.info(f"[BOT]: {response_with_signature}")
             else:
                 logger.warning("Failed to post response")
     
@@ -471,50 +537,119 @@ class YouTubeChatBridge:
         """
         Determine if the bot should respond to a message
         
+        PHILOSOPHY: Only respond when the message is directed at the bot or asking for help.
+        Avoid interrupting conversations between viewers.
+        
         Args:
             message: The message text
             
         Returns:
             True if bot should respond, False otherwise
         """
-        # Customize this logic based on your needs
-        
-        # Always respond to questions
-        question_markers = ['?', 'kya', 'kaise', 'kab', 'kahan', 'kyun', 'what', 'why', 'how', 'who', 'when', 'where']
-        if any(marker in message.lower() for marker in question_markers):
-            logger.debug(f"Message is a question: {message[:30]}...")
-            return True
-            
-        # Respond to keywords about specs/setup
-        specs_keywords = ['specs', 'pc', 'system', 'gpu', 'cpu', 'ram', 'setup', 'config']
-        if any(keyword in message.lower() for keyword in specs_keywords):
-            logger.debug(f"Message mentions specs: {message[:30]}...")
-            return True
-        
-        # Respond to greetings (but not if it's a command)
-        if not message.strip().startswith('!'):
-            greetings = ['hi', 'hello', 'hey', 'namaste', 'namaskar', 'hii', 'hlo']
-            if any(greeting in message.lower() for greeting in greetings):
-                logger.debug(f"Message is a greeting: {message[:30]}...")
-                return True
-        
-        # Respond to help requests
-        help_keywords = ['help', 'madad', 'question', 'sawal', 'puch']
-        if any(keyword in message.lower() for keyword in help_keywords):
-            logger.debug(f"Message is a help request: {message[:30]}...")
-            return True
+        import re
         
         # Don't respond to very short messages (likely reactions)
-        if len(message) < 4:
+        if len(message.strip()) < 4:
             logger.debug(f"Message too short, ignoring: {message}")
             return False
         
-        # You can add more logic here:
-        # - Respond only when mentioned by name
-        # - Use sentiment analysis
-        # - Use keyword filters
-        # - Respond to specific command patterns
+        msg_lower = message.lower().strip()
         
+        # ========== CONVERSATION DETECTION (VIEWER-TO-VIEWER) ==========
+        # Don't interrupt conversations between viewers
+        
+        # Check for @mentions of other users (indicates conversation between viewers)
+        if re.search(r'@\w+', message):
+            logger.debug(f"Message mentions another user (conversation): {message[:30]}...")
+            return False
+        
+        # Check for patterns suggesting direct address to other users
+        # "you" or "your" used in conversational context (not asking about streamer)
+        conversation_patterns = [
+            r'^(hey\s+\w+|hi\s+\w+|yo\s+\w+)',           # "hey username" / "hi username"
+            r'^(dude|bro|man|girl|buddy),?\s+',          # Direct address markers
+            r'^(you\s+(are|is|got|have|play|watch))',    # You direct conversation
+        ]
+        
+        if any(re.search(pattern, msg_lower) for pattern in conversation_patterns):
+            logger.debug(f"Message is direct address to another viewer: {message[:30]}...")
+            return False
+        
+        # If message is asking about "you" but doesn't have a question word, likely casual chat
+        # Example: "you watching this?" vs "are you watching this?"
+        if re.search(r'^you\s+\w+', msg_lower) and '?' in message:
+            # Check if it starts with a question word
+            question_start_patterns = [r'^(what|why|how|when|where|who|is|are|do|does|can)', 
+                                       r'^(kya|kyun|kaise|kab|kahan|kaun)']
+            if not any(re.search(pattern, msg_lower) for pattern in question_start_patterns):
+                logger.debug(f"Casual question to viewer (not bot): {message[:30]}...")
+                return False
+        
+        # ========== BOT DIRECT ADDRESS / EXPLICIT REQUEST ==========
+        # Only respond if it's clearly directed at the bot or a command
+        
+        # 1. Explicit Commands (highest priority - always respond)
+        if message.strip().startswith('!'):
+            return True
+        
+        # 2. Direct mention of bot/streamer
+        bot_names = ['loki', 'bot', 'host', 'streamer', self.bot_name.lower()]
+        mention_pattern = r'\b(' + '|'.join(bot_names) + r')\b|\@' + self.bot_name.lower()
+        if re.search(mention_pattern, msg_lower):
+            logger.debug(f"Bot directly mentioned: {message[:30]}...")
+            return True
+        
+        # 3. Standalone Greetings (but only if alone, not part of conversation)
+        greeting_patterns = [
+            r'^(hi|hello|hey|hii|hlo|namaste|namaskar|pranam|salaam)[\s!]*$',
+            r'^(yo|sup|heya|howdy)[\s!]*$'
+        ]
+        
+        is_standalone_greeting = any(re.match(pattern, msg_lower) for pattern in greeting_patterns)
+        if is_standalone_greeting:
+            logger.debug(f"Standalone greeting (not to another user): {message[:30]}...")
+            return True
+        
+        # 4. Direct Questions about the streamer/bot (only questions that clearly need answering)
+        # Must start with question word to be "direct"
+        if '?' in msg_lower:
+            # Question word patterns - must be at the very START
+            direct_question_patterns = [
+                r'^(what|kya|kyaa)\s+.*(you|your|bot|loki|' + self.bot_name.lower() + r'|streak|setup)',
+                r'^(why|kyun)\s+.*(you|your|play|stream)',
+                r'^(how|kaise)\s+.*(you|your|do|play)',
+                r'^(who|kaun)\s+.*(are|ho)',
+                r'^(when|kab)\s+.*(you|stream)',
+                r'^(what|kya).*(game|valorant|rank|stats)',
+            ]
+            
+            is_direct_question = any(re.search(pattern, msg_lower) for pattern in direct_question_patterns)
+            
+            if is_direct_question:
+                logger.debug(f"Direct question to bot/streamer: {message[:30]}...")
+                return True
+            else:
+                # Question mark present but not directed at bot
+                logger.debug(f"Question but not to bot (viewer chat): {message[:30]}...")
+                return False
+        
+        # 5. Explicit Help Requests
+        help_keywords = ['help', 'madad', 'sawal', 'puch']
+        help_pattern = r'\b(' + '|'.join(help_keywords) + r')\b'
+        if re.search(help_pattern, msg_lower):
+            logger.debug(f"Explicit help request: {message[:30]}...")
+            return True
+        
+        # 6. Specs/Setup Keywords (only if asking question or mention bot)
+        specs_keywords = ['specs', 'pc', 'system', 'gpu', 'cpu', 'ram', 'setup', 'config', 'build']
+        specs_pattern = r'\b(' + '|'.join(specs_keywords) + r')\b'
+        if re.search(specs_pattern, msg_lower):
+            logger.debug(f"Specs mention: {message[:30]}...")
+            return True
+        
+        # ========== DEFAULT: DON'T RESPOND ==========
+        # Better to be silent than interrupt viewer conversations
+        logger.debug(f"Viewer chat - no response: {message[:30]}...")
         return False
     
     async def generate_response(self, author: str, message: str) -> Optional[str]:
@@ -617,7 +752,9 @@ async def run_youtube_chat_bot(
     agent_name: str = "youtube_chat_advanced",
     streamer_profile: dict = None,
     current_game: str = None,
-    stream_topic: str = None
+    stream_topic: str = None,
+    bot_name: str = "ValoMate",
+    bot_username: str = "ValoMate"
 ):
     """
     Run the YouTube chat bot
@@ -628,6 +765,8 @@ async def run_youtube_chat_bot(
         streamer_profile: Dictionary containing streamer details
         current_game: Name of the game being played
         stream_topic: Topic of the stream (if not gaming)
+        bot_name: Name of the bot to use in messages (default: ValoMate)
+        bot_username: Custom username/signature for bot responses (default: ValoMate)
     """
     logger.info(f"Starting YouTube chat bot for video: {video_id}")
     
@@ -672,7 +811,9 @@ async def run_youtube_chat_bot(
         streamer_profile=streamer_profile,
         current_game=current_game,
         stream_topic=stream_topic,
-        response_delay=2.0
+        response_delay=2.0,
+        bot_name=bot_name,
+        bot_username=bot_username
     )
     
     await bridge.start()

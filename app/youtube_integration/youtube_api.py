@@ -238,7 +238,7 @@ class YouTubeLiveChatAPI:
         Fetch new messages from the live chat
         
         Returns:
-            List of message dictionaries with 'author', 'message', and 'id'
+            List of message dictionaries with 'author', 'message', 'id', and 'type' (text/membership)
         """
         if not self.live_chat_id:
             logger.warning("No live chat ID set. Call get_live_chat_id first.")
@@ -270,9 +270,10 @@ class YouTubeLiveChatAPI:
                 
                 snippet = item['snippet']
                 author_details = item['authorDetails']
+                message_type = snippet.get('type', 'unknown')
                 
-                # Only process text messages (ignore superchats, member messages for now)
-                if snippet.get('type') == 'textMessageEvent':
+                # Process text messages
+                if message_type == 'textMessageEvent':
                     messages.append({
                         'id': message_id,
                         'author': author_details['displayName'],
@@ -280,8 +281,25 @@ class YouTubeLiveChatAPI:
                         'message': snippet['displayMessage'],
                         'timestamp': snippet['publishedAt'],
                         'is_moderator': author_details.get('isChatModerator', False),
-                        'is_owner': author_details.get('isChatOwner', False)
+                        'is_owner': author_details.get('isChatOwner', False),
+                        'type': 'text'
                     })
+                
+                # Process membership messages (new subscriptions)
+                elif message_type == 'membershipMesageEvent':
+                    # YouTube uses 'membershipMesageEvent' (note: typo in YouTube API)
+                    messages.append({
+                        'id': message_id,
+                        'author': author_details['displayName'],
+                        'author_channel_id': author_details['channelId'],
+                        'message': snippet.get('displayMessage', ''),  # May be empty for pure membership
+                        'timestamp': snippet['publishedAt'],
+                        'is_moderator': author_details.get('isChatModerator', False),
+                        'is_owner': author_details.get('isChatOwner', False),
+                        'type': 'membership',
+                        'membership_level': snippet.get('membershipDuration', 'new')  # New or renewal duration
+                    })
+                    logger.info(f"[MEMBERSHIP] {author_details['displayName']} just subscribed!")
             
             # Get polling interval from response
             # Enforce a minimum of 10 seconds to save quota (extends runtime to ~5-6 hours)
