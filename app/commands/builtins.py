@@ -27,50 +27,14 @@ class HelpCommand(BaseCommand):
             command_name = args[0].lower().lstrip("!")
             return self._get_command_help(command_name)
         
-        # Generic help - list all available commands
+        # Concise help - fit in YouTube's character limit
         help_text = (
-            "🤖 **ValoMate - Complete Command List** 🎮\n\n"
-            
-            "📋 **GENERAL COMMANDS:**\n"
-            "• !help, !h, !?, !commands - Show this help message\n"
-            "• !ping, !p, !online - Check if bot is responsive (replies: Pong!)\n"
-            "• !uptime, !up, !runtime - Show how long the stream has been live\n"
-            "• !socials, !links, !follow - Show streamer's social media links (Twitter, Instagram, Discord, Twitch)\n\n"
-            
-            "📊 **STREAM STATISTICS:**\n"
-            "• !stats, !status, !stream - Get detailed stream stats (viewers, likes, subs, engagement rate)\n"
-            "• !viewers, !viewercount, !watching - Show current viewer count and active chatters\n"
-            "• !top, !leaderboard, !chatters - Show top 5 chatters this stream with message counts\n"
-            "• !topchatters, !yesterdaytop, !topusers [yesterday/today/YYYY-MM-DD] - Top chatters from specific date\n"
-            "• !botstats, !botinfo, !botmetrics - Show bot health (uptime, messages processed, commands executed, response time)\n"
-            "• !export, !report, !sessionreport - Export current session analytics to JSON file\n\n"
-            
-            "🎮 **VALORANT COMMANDS:**\n"
-            "• !val, !valorant, !stats [username#TAG] [region] - Get Valorant player rank and stats\n"
-            "  Regions: na (North America), eu (Europe), ap (Asia Pacific), latam, br (Brazil), kr (Korea)\n"
-            "  Example: !val ProPlayer#123 eu\n"
-            "• !agent, !agents, !champions [agent_name] - Get info about Valorant agents\n"
-            "  Example: !agent jett - Learn about Jett's abilities\n"
-            "• !map, !maps [map_name] - Get Valorant map information\n"
-            "  Maps: Ascent, Bind, Haven, Split, Icebox, Breeze, Fracture, Pearl, Sunset\n\n"
-            
-            "📈 **GROWTH & CHALLENGES:**\n"
-            "• !setgoal, !goal [number] - Set subscriber goal (e.g., !setgoal 2000)\n"
-            "• !setfollowers, !followers [number] - Set current follower count\n"
-            "• !challenge, !startchallenge [messages] [reward] - Start community challenge\n"
-            "  Example: !challenge 500 I'll do 50 pushups\n"
-            "• !challengeprogress, !cprogress - Check progress on current challenge\n"
-            "• !cancelchallenge, !stopchallenge - Cancel the active challenge\n"
-            "• !growthstats, !gstats - View growth statistics and goals\n\n"
-            
-            "💡 **TIPS:**\n"
-            "• Use !help [command] for detailed info on specific command\n"
-            "• Example: !help val - Get detailed Valorant command help\n"
-            "• Most commands have aliases (!h instead of !help, !p instead of !ping)\n"
-            "• Bot tracks viewer engagement and chat history automatically\n"
-            "• New viewers get personalized welcome messages!\n\n"
-            
-            "❓ Need more info? Try: !help [command_name]"
+            "🤖 **ValoMate Commands:**\n\n"
+            "📋 General: !help, !ping, !uptime, !socials\n"
+            "📊 Stats: !stats, !viewers, !top, !topchatters, !botstats, !export\n"
+            "🎮 Valorant: !val [user#tag] [region], !agent [name], !map [name]\n"
+            "📈 Growth: !setgoal, !setfollowers, !challenge, !challengeprogress, !cancelchallenge, !growthstats\n\n"
+            "💡 Use !help [command] for details (e.g., !help val, !help stats)"
         )
         return help_text
     
