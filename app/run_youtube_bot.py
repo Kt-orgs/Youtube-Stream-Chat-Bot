@@ -29,6 +29,20 @@ from youtube_integration.chat_bridge import run_youtube_chat_bot
 # Use relative path for profile file
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROFILE_FILE = os.path.join(BASE_DIR, "streamer_profile.json")
+ADMIN_CONFIG_FILE = os.path.join(BASE_DIR, "admin_config.json")
+
+def get_admin_users():
+    """Load admin configuration"""
+    if os.path.exists(ADMIN_CONFIG_FILE):
+        try:
+            with open(ADMIN_CONFIG_FILE, 'r') as f:
+                config = json.load(f)
+                admin_users = config.get("admin_users", [])
+                logger.info(f"Loaded admin users: {admin_users}")
+                return admin_users
+        except Exception as e:
+            logger.warning(f"Error loading admin config: {e}")
+    return []
 
 def get_streamer_profile():
     """Load or create streamer profile"""
@@ -203,6 +217,10 @@ def main():
     streamer_profile = get_streamer_profile()
     logger.info(f"Streamer profile loaded for: {streamer_profile.get('Name', 'Unknown')}")
     
+    # Get Admin Users
+    admin_users = get_admin_users()
+    logger.info(f"Admin users configured: {admin_users}")
+    
     # Get Current Context
     logger.info("-" * 40)
     
@@ -263,7 +281,8 @@ def main():
             current_game=current_game,
             stream_topic=stream_topic,
             bot_name=bot_name,
-            bot_username=bot_username
+            bot_username=bot_username,
+            admin_users=admin_users
         ))
         logger.info("\n\nBot completed - stream ended")
         return 0

@@ -22,7 +22,8 @@ class CommandContext:
                  youtube_api: Optional[Any] = None,
                  streamer_profile: Optional[Dict] = None,
                  current_game: Optional[str] = None,
-                 stream_topic: Optional[str] = None):
+                 stream_topic: Optional[str] = None,
+                 admin_users: Optional[list] = None):
         """
         Initialize command context
         
@@ -33,6 +34,7 @@ class CommandContext:
             streamer_profile: Streamer profile dictionary
             current_game: Currently playing game
             stream_topic: Stream topic if not gaming
+            admin_users: List of admin usernames (e.g., ['LokiVersee'])
         """
         import time
         self.author = author
@@ -41,11 +43,16 @@ class CommandContext:
         self.streamer_profile = streamer_profile or {}
         self.current_game = current_game
         self.stream_topic = stream_topic
+        self.admin_users = admin_users or []
         self.timestamp = time.time()
     
     def get(self, key: str, default: Any = None) -> Any:
         """Dictionary-like access to context"""
         return getattr(self, key, default)
+    
+    def is_admin(self) -> bool:
+        """Check if the command author is an admin"""
+        return self.author in self.admin_users
 
 
 class BaseCommand(ABC):
@@ -65,6 +72,9 @@ class BaseCommand(ABC):
     
     # Whether command requires specific permissions
     requires_auth: bool = False
+    
+    # Whether command requires admin privileges
+    admin_only: bool = False
     
     def __init__(self):
         self.logger = get_logger(self.__class__.__name__)

@@ -23,8 +23,8 @@ class GrowthFeatures:
     
     CONFIG_FILE = "growth_config.json"
     
-    def __init__(self):
-        self.new_viewers = set()  # Track first-time chatters
+    def __init__(self, analytics_db=None):
+        self.new_viewers = set()  # Track first-time chatters in current stream
         self.active_viewers = defaultdict(int)  # Track viewer message counts
         self.last_viewer_callout = 0  # Track last callout time
         self.last_follower_announcement = 0  # Track last follower announcement
@@ -32,6 +32,7 @@ class GrowthFeatures:
         self.challenge_config = {}
         self.follower_goal = 2000  # Default goal
         self.current_followers = 0
+        self.analytics_db = analytics_db  # Database reference for historical data
         
         # Load configuration if it exists
         self.load_config()
@@ -78,13 +79,19 @@ class GrowthFeatures:
             logger.info(f"Updated follower count to {current_followers}")
     
     def is_new_viewer(self, username: str) -> bool:
-        """Check if viewer is chatting for first time"""
+        """Check if viewer is chatting for first time in CURRENT stream"""
         is_new = username not in self.new_viewers
         if is_new:
             self.new_viewers.add(username)
             self.save_config()
-            logger.info(f"New viewer detected: {username}")
+            logger.info(f"New viewer detected (this stream): {username}")
         return is_new
+    
+    def is_returning_viewer(self, username: str) -> bool:
+        """Check if viewer has chatted in PAST streams"""
+        if not self.analytics_db:
+            return False
+        return self.analytics_db.is_returning_viewer(username)
     
     def track_message(self, username: str):
         """Track viewer message for activity purposes"""
@@ -100,6 +107,64 @@ class GrowthFeatures:
         ]
         import random
         return random.choice(welcome_messages)
+    
+    def get_returning_viewer_welcome(self, username: str) -> str:
+        """Generate personalized welcome message for returning viewers"""
+        if not self.analytics_db:
+            return self.get_new_viewer_welcome(username)
+        
+        # Get viewer stats
+        stats = self.analytics_db.get_viewer_stats(username)
+        recent = self.analytics_db.get_most_recent_session_info(username)
+        days_ago = self.analytics_db.get_days_since_last_chat(username)
+        
+        if not stats:
+            return self.get_new_viewer_welcome(username)
+        
+        total_messages = stats.get('total_messages', 0)
+        total_sessions = stats.get('total_sessions', 0)
+        
+        # Determine activity level
+        activity_level = "legend" if total_messages > 100 else \
+                        "super active" if total_messages > 50 else \
+                        "pretty active" if total_messages > 20 else \
+                        "familiar friend"
+        
+        # Create personalized message based on stats
+        if days_ago == 0:
+            # Today
+            returning_messages = [
+                f"🔥 {username} is back! Welcome back legend! You were super active today too! 💪",
+                f"👋 {username}! Great to see you again today! You're on fire! 🎮",
+            ]
+        elif days_ago == 1:
+            # Yesterday
+            returning_messages = [
+                f"🔥 {username} welcome back! We missed you! That was an epic stream yesterday! 💙",
+                f"👋 {username}! Good to see you again! Remember yesterday? Great times! 🎮",
+            ]
+        elif days_ago <= 7:
+            # Within a week
+            returning_messages = [
+                f"🔥 {username} welcome back! Been about {days_ago} days - glad you're back! Let's go! 💪",
+                f"👋 {username}! Great to see you again! You were super active a few days ago! 🎮",
+            ]
+        else:
+            # More than a week
+            returning_messages = [
+                f"🔥 {username} welcome back! Haven't seen you in {days_ago} days - we missed you! 💙",
+                f"👋 {username}! You're back! Been a while ({days_ago} days) but you were a {activity_level} chatter! 🎮",
+            ]
+        
+        # Add activity reference if impressive
+        if total_messages > 50:
+            returning_messages = [
+                f"🔥 {username} is back! You've been super active with {total_messages}+ messages across {total_sessions} streams! Welcome back legend! 💪",
+                f"👋 {username}! Welcome back! I remember you - you're one of our {activity_level} viewers! Great to see you! 🎮",
+            ]
+        
+        import random
+        return random.choice(returning_messages)
     
     def get_follower_progress(self) -> str:
         """Get follower goal progress message"""

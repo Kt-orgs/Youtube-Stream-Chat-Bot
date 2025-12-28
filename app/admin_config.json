@@ -1,0 +1,6 @@
+{
+  "admin_users": [
+    "LokiVersee"
+  ],
+  "description": "List of usernames with admin privileges for managing bot commands. Admin users can execute restricted commands like !setgoal, !challenge, !cancelchallenge, !setfollowers, and !export."
+}

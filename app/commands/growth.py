@@ -23,11 +23,15 @@ class SetFollowerGoalCommand(BaseCommand):
     aliases = ["goal"]
     description = "Set follower goal (e.g., !setgoal 2000)"
     usage = "!setgoal <number>"
+    admin_only = True
     
     async def execute(self, context: CommandContext) -> Optional[str]:
         """Execute the command"""
         if not context.message.startswith("!"):
             return None
+        
+        if not context.is_admin():
+            return f"❌ Only admins can set follower goals! Current admins: {', '.join(context.admin_users)}"
         
         parts = context.message.split()
         if len(parts) < 2:
@@ -54,11 +58,15 @@ class StartChallengeCommand(BaseCommand):
     aliases = ["startchallenge"]
     description = "Start a community challenge (e.g., !challenge 500 do 50 pushups)"
     usage = "!challenge <message_count> <reward_text>"
+    admin_only = True
     
     async def execute(self, context: CommandContext) -> Optional[str]:
         """Execute the command"""
         if not context.message.startswith("!"):
             return None
+        
+        if not context.is_admin():
+            return f"❌ Only admins can start challenges! Current admins: {', '.join(context.admin_users)}"
         
         parts = context.message.split(maxsplit=2)
         if len(parts) < 3:
@@ -134,9 +142,13 @@ class CancelChallengeCommand(BaseCommand):
     aliases = ["stopchallenge"]
     description = "Cancel the current challenge"
     usage = "!cancelchallenge"
+    admin_only = True
     
     async def execute(self, context: CommandContext) -> Optional[str]:
         """Execute the command"""
+        if not context.is_admin():
+            return f"❌ Only admins can cancel challenges! Current admins: {', '.join(context.admin_users)}"
+        
         growth = get_growth_features()
         growth.challenge_active = False
         growth.save_config()
@@ -150,11 +162,15 @@ class SetCurrentFollowersCommand(BaseCommand):
     aliases = ["followers", "setcurrentfollowers"]
     description = "Set current follower count (e.g., !setfollowers 1234)"
     usage = "!setfollowers <number>"
+    admin_only = True
     
     async def execute(self, context: CommandContext) -> Optional[str]:
         """Execute the command"""
         if not context.message.startswith("!"):
             return None
+        
+        if not context.is_admin():
+            return f"❌ Only admins can set follower count! Current admins: {', '.join(context.admin_users)}"
         
         parts = context.message.split()
         if len(parts) < 2:

@@ -64,7 +64,8 @@ class YouTubeChatBridge:
         ignore_owner: bool = False,
         require_mention: bool = False,
         bot_name: str = "ValoMate",
-        bot_username: str = "ValoMate"
+        bot_username: str = "ValoMate",
+        admin_users: Optional[list] = None
     ):
         """
         Initialize the chat bridge
@@ -81,6 +82,7 @@ class YouTubeChatBridge:
             require_mention: If True, bot only responds if directly mentioned (more conservative)
             bot_name: Name of the bot to use in messages (default: ValoMate)
             bot_username: Custom username/signature for bot messages (default: ValoMate)
+            admin_users: List of admin usernames (e.g., ['LokiVersee'])
         """
         # Initialize API with OAuth support (for posting only)
         self.youtube = YouTubeLiveChatAPI()
@@ -95,6 +97,7 @@ class YouTubeChatBridge:
         self.require_mention = require_mention  # More conservative response mode
         self.bot_name = bot_name  # Bot's unique name/persona
         self.bot_username = bot_username  # Customizable username signature for responses
+        self.admin_users = admin_users or []  # Admin user list
         self.is_running = False
 
         # Store context for skills
@@ -174,10 +177,15 @@ class YouTubeChatBridge:
         self.viewer_snapshot_interval = 60  # Track viewers every 60 seconds
         self.last_viewer_snapshot = 0
         
-        # Growth features
+        # Growth features - pass analytics database for historical viewer data
         self.growth = get_growth_features()
+        self.growth.analytics_db = self.analytics.db  # Pass database reference for historical queries
         self.growth_feature_interval = 30  # Check growth features every 30 seconds
         self.last_growth_check = 0
+        
+        # Periodic announcement settings
+        self.announcement_interval = 420  # 7 minutes in seconds
+        self.last_announcement_time = 0
         
     def _initialize_follower_count(self):
         """Initialize follower count from YouTube API on startup"""
@@ -312,7 +320,7 @@ class YouTubeChatBridge:
                     return
 
                 intro_msg = (
-                    f"🤖 {self.bot_name} here! Ask me anything. Try !help, !stats, !ping, !uptime, !socials, !status"
+                    f"🤖 {self.bot_name} is here! Ask me anything by tagging me with @{self.bot_name}! Try !help, !stats, !ping, !uptime, !socials, !status"
                 )
                 try:
                     message_id = self.youtube.post_message(intro_msg)
@@ -384,6 +392,20 @@ class YouTubeChatBridge:
                                     logger.info(f"[VIEWER CALLOUT]: {callout_msg}")
                             except Exception as e:
                                 logger.warning(f"Failed to post viewer callout: {e}")
+                
+                # Periodic announcement (every 7 minutes)
+                if current_time - self.last_announcement_time >= self.announcement_interval:
+                    self.last_announcement_time = current_time
+                    announcement_msg = f"Hey everyone {self.bot_name} is here in the chat ask me anything by tagging me with @{self.bot_name}"
+                    try:
+                        msg_id = self.youtube.post_message(announcement_msg)
+                        if msg_id:
+                            self.processed_messages.add(msg_id)
+                            self.save_message_id(msg_id)
+                            self.recent_bot_messages.append(self._normalize_text(announcement_msg))
+                            logger.info(f"[PERIODIC ANNOUNCEMENT]: {announcement_msg}")
+                    except Exception as e:
+                        logger.warning(f"Failed to post periodic announcement: {e}")
                 
                 # Fetch new messages using pytchat
                 for c in chat.get().sync_items():
@@ -573,7 +595,8 @@ class YouTubeChatBridge:
                     youtube_api=self.youtube,
                     streamer_profile=self.streamer_profile,
                     current_game=self.current_game,
-                    stream_topic=self.stream_topic
+                    stream_topic=self.stream_topic,
+                    admin_users=self.admin_users
                 )
                 try:
                     response = await self.command_parser.execute(text, cmd_context)
@@ -622,20 +645,32 @@ class YouTubeChatBridge:
         # 5. POST NEW VIEWER WELCOME (if applicable)
         if is_new_viewer:
             await asyncio.sleep(self.response_delay)
-            welcome_message = self.growth.get_new_viewer_welcome(author)
+            
+            # Check if this is a returning viewer with historical data
+            is_returning = self.growth.is_returning_viewer(author)
+            
+            if is_returning:
+                # Use personalized returning viewer message
+                welcome_message = self.growth.get_returning_viewer_welcome(author)
+                logger.info(f"[RETURNING VIEWER]: {author} - using personalized welcome")
+            else:
+                # Use generic new viewer message
+                welcome_message = self.growth.get_new_viewer_welcome(author)
+                logger.info(f"[NEW VIEWER]: {author} - completely new viewer")
+            
             welcome_msg_id = self.youtube.post_message(welcome_message)
             if welcome_msg_id:
                 self.processed_messages.add(welcome_msg_id)
                 self.save_message_id(welcome_msg_id)
                 self.recent_bot_messages.append(self._normalize_text(welcome_message))
-                logger.info(f"[NEW VIEWER WELCOME]: {welcome_message}")
+                logger.info(f"[VIEWER WELCOME]: {welcome_message}")
     
     def should_respond_to_message(self, message: str) -> bool:
         """
         Determine if the bot should respond to a message
         
-        PHILOSOPHY: Only respond when the message is directed at the bot or asking for help.
-        Avoid interrupting conversations between viewers.
+        PHILOSOPHY: Only respond when the message is directed at the bot (tagged with @ValoMate).
+        This avoids interrupting conversations between viewers.
         
         Args:
             message: The message text
@@ -645,62 +680,16 @@ class YouTubeChatBridge:
         """
         import re
         
-        # Don't respond to very short messages (likely reactions)
-        if len(message.strip()) < 4:
-            logger.debug(f"Message too short, ignoring: {message}")
-            return False
-        
         msg_lower = message.lower().strip()
         
-        # ========== CONVERSATION DETECTION (VIEWER-TO-VIEWER) ==========
-        # Don't interrupt conversations between viewers
-        
-        # Check for @mentions of other users (indicates conversation between viewers)
-        if re.search(r'@\w+', message):
-            logger.debug(f"Message mentions another user (conversation): {message[:30]}...")
+        # ========== MENTION REQUIREMENT ==========
+        # Bot only responds if explicitly mentioned with @ValoMate
+        if f'@{self.bot_name.lower()}' not in msg_lower:
+            logger.debug(f"Message doesn't mention @{self.bot_name} - ignoring: {message[:30]}...")
             return False
         
-        # Check for patterns suggesting direct address to other users
-        # "you" or "your" used in conversational context (not asking about streamer)
-        conversation_patterns = [
-            r'^(hey\s+\w+|hi\s+\w+|yo\s+\w+)',           # "hey username" / "hi username"
-            r'^(dude|bro|man|girl|buddy),?\s+',          # Direct address markers
-            r'^(you\s+(are|is|got|have|play|watch))',    # You direct conversation
-        ]
-        
-        if any(re.search(pattern, msg_lower) for pattern in conversation_patterns):
-            logger.debug(f"Message is direct address to another viewer: {message[:30]}...")
-            return False
-        
-        # If message is asking about "you" but doesn't have a question word, likely casual chat
-        # Example: "you watching this?" vs "are you watching this?"
-        if re.search(r'^you\s+\w+', msg_lower) and '?' in message:
-            # Check if it starts with a question word
-            question_start_patterns = [r'^(what|why|how|when|where|who|is|are|do|does|can)', 
-                                       r'^(kya|kyun|kaise|kab|kahan|kaun)']
-            if not any(re.search(pattern, msg_lower) for pattern in question_start_patterns):
-                logger.debug(f"Casual question to viewer (not bot): {message[:30]}...")
-                return False
-        
-        # ========== BOT DIRECT ADDRESS / EXPLICIT REQUEST ==========
-        # Only respond if it's clearly directed at the bot or a command
-        
-        # 1. Explicit Commands (highest priority - always respond)
-        if message.strip().startswith('!'):
-            return True
-        
-        # 2. Direct mention of bot/streamer
-        bot_names = ['loki', 'bot', 'host', 'streamer', self.bot_name.lower()]
-        mention_pattern = r'\b(' + '|'.join(bot_names) + r')\b|\@' + self.bot_name.lower()
-        if re.search(mention_pattern, msg_lower):
-            logger.debug(f"Bot directly mentioned: {message[:30]}...")
-            return True
-        
-        # 3. Standalone Greetings (but only if alone, not part of conversation)
-        greeting_patterns = [
-            r'^(hi|hello|hey|hii|hlo|namaste|namaskar|pranam|salaam)[\s!]*$',
-            r'^(yo|sup|heya|howdy)[\s!]*$'
-        ]
+        logger.debug(f"Bot mentioned (@{self.bot_name}): {message[:50]}...")
+        return True
         
         is_standalone_greeting = any(re.match(pattern, msg_lower) for pattern in greeting_patterns)
         if is_standalone_greeting:
@@ -863,7 +852,8 @@ async def run_youtube_chat_bot(
     current_game: str = None,
     stream_topic: str = None,
     bot_name: str = "ValoMate",
-    bot_username: str = "ValoMate"
+    bot_username: str = "ValoMate",
+    admin_users: list = None
 ):
     """
     Run the YouTube chat bot
@@ -876,6 +866,7 @@ async def run_youtube_chat_bot(
         stream_topic: Topic of the stream (if not gaming)
         bot_name: Name of the bot to use in messages (default: ValoMate)
         bot_username: Custom username/signature for bot responses (default: ValoMate)
+        admin_users: List of admin usernames who can execute restricted commands
     """
     logger.info(f"Starting YouTube chat bot for video: {video_id}")
     
@@ -922,7 +913,8 @@ async def run_youtube_chat_bot(
         stream_topic=stream_topic,
         response_delay=2.0,
         bot_name=bot_name,
-        bot_username=bot_username
+        bot_username=bot_username,
+        admin_users=admin_users or []
     )
     
     # Initialize follower count from YouTube

@@ -40,6 +40,6 @@ class GreetingSkill(BaseSkill):
                 break
         streamer = context.get("streamer_profile", {}).get("Name", "the stream")
         # Keep it short and welcoming
-        response = f"{greeting} {author}! Welcome to the stream—glad you're here."
+        response = f"{greeting} {author}! Welcome to the stream—glad you're here. Tag me with @ValoMate if you have any questions!"
         logger.debug(f"Greeting skill triggered for {author}")
         return response

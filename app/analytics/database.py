@@ -398,6 +398,157 @@ class AnalyticsDatabase:
             logger.error(f"Error getting command stats: {e}", exc_info=True)
             return []
     
+    def get_viewer_chat_history(self, author: str) -> List[Dict[str, Any]]:
+        """
+        Get all chat sessions for a specific viewer
+        
+        Args:
+            author: Username of the viewer
+            
+        Returns:
+            List of dicts with session info and message counts
+        """
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute("""
+                SELECT 
+                    s.id,
+                    s.start_time,
+                    s.stream_title,
+                    s.game,
+                    COUNT(m.id) as message_count
+                FROM sessions s
+                LEFT JOIN messages m ON s.id = m.session_id AND m.author = ?
+                WHERE m.author = ?
+                GROUP BY s.id
+                ORDER BY s.start_time DESC
+            """, (author, author))
+            
+            return [dict(row) for row in cursor.fetchall()]
+            
+        except Exception as e:
+            logger.error(f"Error getting viewer chat history for {author}: {e}", exc_info=True)
+            return []
+    
+    def get_viewer_stats(self, author: str) -> Optional[Dict[str, Any]]:
+        """
+        Get comprehensive stats for a viewer
+        
+        Args:
+            author: Username of the viewer
+            
+        Returns:
+            Dict with: first_chat_date, last_chat_date, total_messages, total_sessions
+        """
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute("""
+                SELECT 
+                    MIN(m.timestamp) as first_chat_date,
+                    MAX(m.timestamp) as last_chat_date,
+                    COUNT(m.id) as total_messages,
+                    COUNT(DISTINCT m.session_id) as total_sessions
+                FROM messages m
+                WHERE m.author = ?
+            """, (author,))
+            
+            row = cursor.fetchone()
+            if row:
+                return dict(row)
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error getting viewer stats for {author}: {e}", exc_info=True)
+            return None
+    
+    def is_returning_viewer(self, author: str) -> bool:
+        """
+        Check if viewer has chatted in any past session (before current session)
+        
+        Args:
+            author: Username of the viewer
+            
+        Returns:
+            True if viewer has chatted before, False if new
+        """
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute("""
+                SELECT COUNT(*) as count
+                FROM messages
+                WHERE author = ?
+            """, (author,))
+            
+            row = cursor.fetchone()
+            return row['count'] > 0 if row else False
+            
+        except Exception as e:
+            logger.error(f"Error checking if viewer is returning: {e}", exc_info=True)
+            return False
+    
+    def get_days_since_last_chat(self, author: str) -> Optional[int]:
+        """
+        Get number of days since viewer last chatted
+        
+        Args:
+            author: Username of the viewer
+            
+        Returns:
+            Number of days ago, or None if never chatted
+        """
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute("""
+                SELECT CAST((julianday('now') - julianday(MAX(m.timestamp))) AS INTEGER) as days_ago
+                FROM messages m
+                WHERE m.author = ?
+            """, (author,))
+            
+            row = cursor.fetchone()
+            if row and row['days_ago'] is not None:
+                return row['days_ago']
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error getting days since last chat for {author}: {e}", exc_info=True)
+            return None
+    
+    def get_most_recent_session_info(self, author: str) -> Optional[Dict[str, Any]]:
+        """
+        Get info about viewer's most recent session
+        
+        Args:
+            author: Username of the viewer
+            
+        Returns:
+            Dict with: session_id, start_time, stream_title, game, message_count
+        """
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute("""
+                SELECT 
+                    s.id,
+                    s.start_time,
+                    s.stream_title,
+                    s.game,
+                    COUNT(m.id) as message_count
+                FROM sessions s
+                JOIN messages m ON s.id = m.session_id AND m.author = ?
+                WHERE m.author = ?
+                GROUP BY s.id
+                ORDER BY s.start_time DESC
+                LIMIT 1
+            """, (author, author))
+            
+            row = cursor.fetchone()
+            if row:
+                return dict(row)
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error getting most recent session info for {author}: {e}", exc_info=True)
+            return None
+    
     def close(self):
         """Close database connection"""
         if self.connection:

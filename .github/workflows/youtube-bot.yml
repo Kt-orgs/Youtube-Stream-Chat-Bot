@@ -161,20 +161,28 @@ jobs:
         git config --global user.name "GitHub Actions Bot"
         git config --global user.email "actions@github.com"
         
-        # Add analytics database if it exists and has changes
+        # Check database status
         if [ -f data/analytics.db ]; then
-          git add data/analytics.db
+          echo "✅ Analytics database found at data/analytics.db"
+          ls -lh data/analytics.db
+          
+          # Force add (sometimes needed due to gitignore rules)
+          git add -f data/analytics.db
           
           # Check if there are changes to commit
           if git diff --staged --quiet; then
             echo "ℹ️ No changes to analytics database"
           else
+            echo "📝 Committing changes..."
             git commit -m "📊 Update analytics database - $(date +'%Y-%m-%d %H:%M:%S')"
-            git push
+            echo "🚀 Pushing to GitHub..."
+            git push origin main || git push origin master || (echo "⚠️ Push failed - checking status"; git status)
             echo "✅ Analytics database updated and pushed"
           fi
         else
-          echo "⚠️ No analytics database found to commit"
+          echo "⚠️ No analytics database found at data/analytics.db"
+          echo "📁 Contents of data/ directory:"
+          ls -la data/ 2>/dev/null || echo "data/ directory does not exist"
         fi
       continue-on-error: true
     

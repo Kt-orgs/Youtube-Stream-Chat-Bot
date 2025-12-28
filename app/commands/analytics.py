@@ -187,9 +187,13 @@ class ExportCommand(BaseCommand):
     aliases = ["report", "sessionreport"]
     description = "Export current session analytics to file"
     usage = "!export"
+    admin_only = True
     
     async def execute(self, context: CommandContext) -> Optional[str]:
         """Execute export command"""
+        if not context.is_admin():
+            return f"❌ Only admins can export analytics! Current admins: {', '.join(context.admin_users)}"
+        
         try:
             analytics = get_analytics_tracker()
             report = analytics.export_session_report()
