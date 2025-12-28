@@ -31,6 +31,7 @@ class SetFollowerGoalCommand(BaseCommand):
             return None
         
         if not context.is_admin():
+            logger.warning(f"Admin check failed for {context.author}: admin_users={context.admin_users}")
             return f"❌ Only admins can set follower goals! Current admins: {', '.join(context.admin_users)}"
         
         parts = context.message.split()
@@ -66,6 +67,7 @@ class StartChallengeCommand(BaseCommand):
             return None
         
         if not context.is_admin():
+            logger.warning(f"Admin check failed for {context.author}: admin_users={context.admin_users}")
             return f"❌ Only admins can start challenges! Current admins: {', '.join(context.admin_users)}"
         
         parts = context.message.split(maxsplit=2)
@@ -147,6 +149,7 @@ class CancelChallengeCommand(BaseCommand):
     async def execute(self, context: CommandContext) -> Optional[str]:
         """Execute the command"""
         if not context.is_admin():
+            logger.warning(f"Admin check failed for {context.author}: admin_users={context.admin_users}")
             return f"❌ Only admins can cancel challenges! Current admins: {', '.join(context.admin_users)}"
         
         growth = get_growth_features()
@@ -170,6 +173,7 @@ class SetCurrentFollowersCommand(BaseCommand):
             return None
         
         if not context.is_admin():
+            logger.warning(f"Admin check failed for {context.author}: admin_users={context.admin_users}")
             return f"❌ Only admins can set follower count! Current admins: {', '.join(context.admin_users)}"
         
         parts = context.message.split()

@@ -52,7 +52,17 @@ class CommandContext:
     
     def is_admin(self) -> bool:
         """Check if the command author is an admin"""
-        return self.author in self.admin_users
+        # Strip whitespace from author name for comparison
+        author_clean = self.author.strip()
+        
+        # Check if author is in admin list (case-sensitive)
+        is_admin = author_clean in self.admin_users
+        
+        if not is_admin:
+            # Log debug info for troubleshooting
+            logger.debug(f"Admin check: author='{author_clean}' (len={len(author_clean)}), admin_users={self.admin_users}")
+        
+        return is_admin
 
 
 class BaseCommand(ABC):

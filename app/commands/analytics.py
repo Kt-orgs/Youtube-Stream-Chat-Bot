@@ -192,6 +192,7 @@ class ExportCommand(BaseCommand):
     async def execute(self, context: CommandContext) -> Optional[str]:
         """Execute export command"""
         if not context.is_admin():
+            logger.warning(f"Admin check failed for {context.author}: admin_users={context.admin_users}")
             return f"❌ Only admins can export analytics! Current admins: {', '.join(context.admin_users)}"
         
         try:
