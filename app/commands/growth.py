@@ -1,6 +1,6 @@
 """
 Growth Features Commands
-Commands for managing follower goals, community challenges, etc.
+Commands for managing subscriber goals, community challenges, etc.
 """
 
 from typing import Optional
@@ -16,12 +16,12 @@ except ImportError:
 logger = get_logger(__name__)
 
 
-class SetFollowerGoalCommand(BaseCommand):
-    """Set the follower goal target"""
+class SetSubscriberGoalCommand(BaseCommand):
+    """Set the subscriber goal target"""
     
     name = "setgoal"
     aliases = ["goal"]
-    description = "Set follower goal (e.g., !setgoal 2000)"
+    description = "Set subscriber goal (e.g., !setgoal 100)"
     usage = "!setgoal <number>"
     admin_only = True
     
@@ -32,11 +32,11 @@ class SetFollowerGoalCommand(BaseCommand):
         
         if not context.is_admin():
             logger.warning(f"Admin check failed for {context.author}: admin_users={context.admin_users}")
-            return f"❌ Only admins can set follower goals! Current admins: {', '.join(context.admin_users)}"
+            return f"❌ Only admins can set subscriber goals! Current admins: {', '.join(context.admin_users)}"
         
         parts = context.message.split()
         if len(parts) < 2:
-            return "Usage: !setgoal <number> (e.g., !setgoal 2000)"
+            return "Usage: !setgoal <number> (e.g., !setgoal 100)"
         
         try:
             goal = int(parts[1])
@@ -44,10 +44,10 @@ class SetFollowerGoalCommand(BaseCommand):
                 return "Goal must be a positive number!"
             
             growth = get_growth_features()
-            growth.set_follower_goal(goal)
+            growth.set_subscriber_goal(goal)
             
             # Return the progress announcement immediately
-            return growth.get_follower_progress()
+            return growth.get_subscriber_progress()
         except ValueError:
             return f"'{parts[1]}' is not a valid number!"
 
@@ -111,7 +111,7 @@ class ViewGrowthStatsCommand(BaseCommand):
             lines.append(f"  Top Chatter: {stats['top_viewer']}")
         
         lines.extend([
-            f"  Follower Goal: {stats['followers_remaining']} more to {stats['follower_goal']}",
+            f"  Subscriber Goal: {stats['subscribers_remaining']} more to {stats['subscriber_goal']}",
             f"  Challenge Active: {'Yes' if stats['challenge_active'] else 'No'}"
         ])
         
@@ -158,13 +158,13 @@ class CancelChallengeCommand(BaseCommand):
         return "Challenge cancelled!"
 
 
-class SetCurrentFollowersCommand(BaseCommand):
-    """Set the current follower count"""
+class SetCurrentSubscribersCommand(BaseCommand):
+    """Set the current subscriber count"""
     
-    name = "setfollowers"
-    aliases = ["followers", "setcurrentfollowers"]
-    description = "Set current follower count (e.g., !setfollowers 1234)"
-    usage = "!setfollowers <number>"
+    name = "setsubs"
+    aliases = ["subs", "setcurrentsubs", "setsubscribers"]
+    description = "Set current subscriber count (e.g., !setsubs 60)"
+    usage = "!setsubs <number>"
     admin_only = True
     
     async def execute(self, context: CommandContext) -> Optional[str]:
@@ -174,20 +174,20 @@ class SetCurrentFollowersCommand(BaseCommand):
         
         if not context.is_admin():
             logger.warning(f"Admin check failed for {context.author}: admin_users={context.admin_users}")
-            return f"❌ Only admins can set follower count! Current admins: {', '.join(context.admin_users)}"
+            return f"❌ Only admins can set subscriber count! Current admins: {', '.join(context.admin_users)}"
         
         parts = context.message.split()
         if len(parts) < 2:
-            return "Usage: !setfollowers <number> (e.g., !setfollowers 1234)"
+            return "Usage: !setsubs <number> (e.g., !setsubs 60)"
         
         try:
-            followers = int(parts[1])
-            if followers < 0:
-                return "Followers must be a non-negative number!"
+            subscribers = int(parts[1])
+            if subscribers < 0:
+                return "Subscribers must be a non-negative number!"
             
             growth = get_growth_features()
-            growth.update_follower_count(followers)
-            remaining = max(0, growth.follower_goal - followers)
-            return f"👍 Current followers set to {followers}. {remaining} away from goal of {growth.follower_goal}!"
+            growth.update_subscriber_count(subscribers)
+            remaining = max(0, growth.subscriber_goal - subscribers)
+            return f"👍 Current subscribers set to {subscribers}. {remaining} away from goal of {growth.subscriber_goal}!"
         except ValueError:
             return f"'{parts[1]}' is not a valid number!"

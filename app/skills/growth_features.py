@@ -1,6 +1,6 @@
 """
 Growth Features for YouTube Chat Bot
-Includes: New viewer welcome, follower goals, community challenges, viewer callouts
+Includes: New viewer welcome, subscriber goals, community challenges, viewer callouts
 """
 
 import json
@@ -23,15 +23,35 @@ class GrowthFeatures:
     
     CONFIG_FILE = "growth_config.json"
     
+    @staticmethod
+    def calculate_next_milestone(current_subs: int) -> int:
+        """Calculate the next subscriber milestone based on current count
+        
+        Logic:
+        - 0-60: next milestone is 100
+        - 61-100: next milestone is 150
+        - 101-150: next milestone is 200
+        - 151+: round up to next 50 (e.g., 151→200, 201→250, etc.)
+        """
+        if current_subs <= 60:
+            return 100
+        elif current_subs <= 100:
+            return 150
+        elif current_subs <= 150:
+            return 200
+        else:
+            # Round up to next 50
+            return ((current_subs // 50) + 1) * 50
+    
     def __init__(self, analytics_db=None):
         self.new_viewers = set()  # Track first-time chatters in current stream
         self.active_viewers = defaultdict(int)  # Track viewer message counts
         self.last_viewer_callout = 0  # Track last callout time
-        self.last_follower_announcement = 0  # Track last follower announcement
+        self.last_subscriber_announcement = 0  # Track last subscriber announcement
         self.challenge_active = False
         self.challenge_config = {}
-        self.follower_goal = 2000  # Default goal
-        self.current_followers = 0
+        self.subscriber_goal = 100  # Default goal
+        self.current_subscribers = 0
         self.analytics_db = analytics_db  # Database reference for historical data
         
         # Load configuration if it exists
@@ -43,11 +63,12 @@ class GrowthFeatures:
             try:
                 with open(self.CONFIG_FILE, 'r') as f:
                     config = json.load(f)
-                    self.follower_goal = config.get('follower_goal', 2000)
-                    self.current_followers = config.get('current_followers', 0)
+                    # Support both old 'follower' and new 'subscriber' keys for backwards compatibility
+                    self.subscriber_goal = config.get('subscriber_goal', config.get('follower_goal', 100))
+                    self.current_subscribers = config.get('current_subscribers', config.get('current_followers', 0))
                     self.challenge_config = config.get('challenge', {})
                     self.new_viewers = set(config.get('new_viewers', []))
-                    logger.info(f"Loaded growth config: goal={self.follower_goal}, followers={self.current_followers}")
+                    logger.info(f"Loaded growth config: goal={self.subscriber_goal}, subscribers={self.current_subscribers}")
             except Exception as e:
                 logger.error(f"Error loading growth config: {e}")
     
@@ -55,8 +76,8 @@ class GrowthFeatures:
         """Save growth features configuration"""
         try:
             config = {
-                'follower_goal': self.follower_goal,
-                'current_followers': self.current_followers,
+                'subscriber_goal': self.subscriber_goal,
+                'current_subscribers': self.current_subscribers,
                 'challenge': self.challenge_config,
                 'new_viewers': list(self.new_viewers)
             }
@@ -65,18 +86,32 @@ class GrowthFeatures:
         except Exception as e:
             logger.error(f"Error saving growth config: {e}")
     
-    def set_follower_goal(self, goal: int):
-        """Set the follower goal target"""
-        self.follower_goal = goal
+    def set_subscriber_goal(self, goal: int):
+        """Set the subscriber goal target"""
+        self.subscriber_goal = goal
         self.save_config()
-        logger.info(f"Follower goal set to {goal}")
+        logger.info(f"Subscriber goal set to {goal}")
     
-    def update_follower_count(self, current_followers: int):
-        """Update current follower count"""
-        if current_followers > 0:
-            self.current_followers = current_followers
+    def update_subscriber_count(self, current_subscribers: int, auto_set_goal: bool = True):
+        """Update current subscriber count and optionally auto-set goal
+        
+        Args:
+            current_subscribers: The current subscriber count
+            auto_set_goal: If True, automatically calculate and set the next milestone goal
+        """
+        if current_subscribers > 0:
+            old_count = self.current_subscribers
+            self.current_subscribers = current_subscribers
+            
+            # Auto-set goal to next milestone if enabled and this is first time or count changed significantly
+            if auto_set_goal and (old_count == 0 or abs(current_subscribers - old_count) >= 5):
+                new_goal = self.calculate_next_milestone(current_subscribers)
+                if new_goal != self.subscriber_goal:
+                    self.subscriber_goal = new_goal
+                    logger.info(f"Auto-set subscriber goal to {new_goal} based on current count {current_subscribers}")
+            
             self.save_config()
-            logger.info(f"Updated follower count to {current_followers}")
+            logger.info(f"Updated subscriber count to {current_subscribers}")
     
     def is_new_viewer(self, username: str) -> bool:
         """Check if viewer is chatting for first time in CURRENT stream"""
@@ -166,15 +201,15 @@ class GrowthFeatures:
         import random
         return random.choice(returning_messages)
     
-    def get_follower_progress(self) -> str:
-        """Get follower goal progress message"""
-        if self.current_followers >= self.follower_goal:
-            return f"🎉 LOKI just hit {self.current_followers} followers! Thanks to everyone for the support! 💙"
+    def get_subscriber_progress(self) -> str:
+        """Get subscriber goal progress message"""
+        if self.current_subscribers >= self.subscriber_goal:
+            return f"🎉 LOKI just hit {self.current_subscribers} subscribers! Thanks to everyone for the support! 💙"
         
-        remaining = self.follower_goal - self.current_followers
-        percentage = (self.current_followers / self.follower_goal) * 100
+        remaining = self.subscriber_goal - self.current_subscribers
+        percentage = (self.current_subscribers / self.subscriber_goal) * 100
         
-        return f"📈 LOKI is {remaining} followers away from {self.follower_goal}! Let's help reach the goal! ({percentage:.1f}%)"
+        return f"📈 LOKI is {remaining} subscribers away from {self.subscriber_goal}! Let's help reach the goal! ({percentage:.1f}%)"
     
     def set_challenge(self, message_target: int, reward_text: str):
         """Set a community challenge"""
@@ -249,13 +284,13 @@ class GrowthFeatures:
             return True
         return False
     
-    def should_announce_follower_progress(self, announcement_interval_minutes: int = 60) -> bool:
-        """Check if enough time has passed for follower announcement"""
+    def should_announce_subscriber_progress(self, announcement_interval_minutes: int = 60) -> bool:
+        """Check if enough time has passed for subscriber announcement"""
         now = time.time()
         interval_seconds = announcement_interval_minutes * 60
         
-        if now - self.last_follower_announcement >= interval_seconds:
-            self.last_follower_announcement = now
+        if now - self.last_subscriber_announcement >= interval_seconds:
+            self.last_subscriber_announcement = now
             return True
         return False
     
@@ -265,9 +300,9 @@ class GrowthFeatures:
             'new_viewers_count': len(self.new_viewers),
             'active_viewers_count': len(self.active_viewers),
             'top_viewer': max(self.active_viewers.items(), key=lambda x: x[1])[0] if self.active_viewers else None,
-            'follower_goal': self.follower_goal,
-            'current_followers': self.current_followers,
-            'followers_remaining': max(0, self.follower_goal - self.current_followers),
+            'subscriber_goal': self.subscriber_goal,
+            'current_subscribers': self.current_subscribers,
+            'subscribers_remaining': max(0, self.subscriber_goal - self.current_subscribers),
             'challenge_active': self.challenge_active
         }
 

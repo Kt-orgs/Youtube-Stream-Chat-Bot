@@ -8,7 +8,7 @@ from .command import BaseCommand, CommandContext
 from .builtins import HelpCommand, PingCommand, UptimeCommand, SocialsCommand, StatusCommand
 from .valorant import ValorantStatsCommand, ValorantAgentCommand, ValorantMapCommand
 from .analytics import ViewersCommand, LeaderboardCommand, TopChattersCommand, BotStatsCommand, ExportCommand
-from .growth import SetFollowerGoalCommand, StartChallengeCommand, ViewGrowthStatsCommand, ChallengeProgressCommand, CancelChallengeCommand, SetCurrentFollowersCommand
+from .growth import SetSubscriberGoalCommand, StartChallengeCommand, ViewGrowthStatsCommand, ChallengeProgressCommand, CancelChallengeCommand, SetCurrentSubscribersCommand
 
 __all__ = [
     "CommandParser", 
@@ -27,11 +27,11 @@ __all__ = [
     "TopChattersCommand",
     "BotStatsCommand",
     "ExportCommand",
-    "SetFollowerGoalCommand",
+    "SetSubscriberGoalCommand",
     "StartChallengeCommand",
     "ViewGrowthStatsCommand",
     "ChallengeProgressCommand",
     "CancelChallengeCommand",
-    "SetCurrentFollowersCommand",
+    "SetCurrentSubscribersCommand",
 ]
 

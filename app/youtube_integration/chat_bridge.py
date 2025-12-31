@@ -25,7 +25,7 @@ try:
         ViewersCommand, LeaderboardCommand, TopChattersCommand, BotStatsCommand, ExportCommand
     )
     from app.commands.growth import (
-        SetFollowerGoalCommand, StartChallengeCommand, ViewGrowthStatsCommand, 
+        SetSubscriberGoalCommand, StartChallengeCommand, ViewGrowthStatsCommand, 
         ChallengeProgressCommand, CancelChallengeCommand
     )
     from app.analytics import get_analytics_tracker
@@ -41,7 +41,7 @@ except ImportError:
         ViewersCommand, LeaderboardCommand, TopChattersCommand, BotStatsCommand, ExportCommand
     )
     from commands.growth import (
-        SetFollowerGoalCommand, StartChallengeCommand, ViewGrowthStatsCommand, 
+        SetSubscriberGoalCommand, StartChallengeCommand, ViewGrowthStatsCommand, 
         ChallengeProgressCommand, CancelChallengeCommand
     )
     from analytics import get_analytics_tracker
@@ -135,7 +135,7 @@ class YouTubeChatBridge:
         self.command_parser.register(BotStatsCommand())
         self.command_parser.register(ExportCommand())
         # Growth features commands
-        self.command_parser.register(SetFollowerGoalCommand())
+        self.command_parser.register(SetSubscriberGoalCommand())
         self.command_parser.register(StartChallengeCommand())
         self.command_parser.register(ViewGrowthStatsCommand())
         self.command_parser.register(ChallengeProgressCommand())
@@ -189,23 +189,23 @@ class YouTubeChatBridge:
         self.messages_since_last_announcement = 0  # Track message count for smart announcements
         self.min_messages_for_announcement = 10  # Require at least 10 messages before announcing
         
-    def _initialize_follower_count(self):
-        """Initialize follower count from YouTube API on startup"""
+    def _initialize_subscriber_count(self):
+        """Initialize subscriber count from YouTube API on startup"""
         try:
-            logger.info("Fetching initial follower count from YouTube...")
+            logger.info("Fetching initial subscriber count from YouTube...")
             stats = self.youtube.get_stream_stats(use_cache=False)
             if stats and stats.get('subs') and stats['subs'] > 0:
-                self.growth.update_follower_count(stats['subs'])
-                logger.info(f"Initialized follower count: {stats['subs']}")
+                self.growth.update_subscriber_count(stats['subs'])
+                logger.info(f"Initialized subscriber count: {stats['subs']}")
             else:
                 logger.warning("Could not fetch real-time subscriber count - check YouTube API permissions")
                 # Check if we have a saved count from previous run
-                if self.growth.current_followers > 0:
-                    logger.info(f"Using previously saved follower count: {self.growth.current_followers}")
+                if self.growth.current_subscribers > 0:
+                    logger.info(f"Using previously saved subscriber count: {self.growth.current_subscribers}")
                 else:
-                    logger.warning("No follower count available - set manually with !setgoal command")
+                    logger.warning("No subscriber count available - set manually with !setgoal command")
         except Exception as e:
-            logger.error(f"Error initializing follower count: {e}")
+            logger.error(f"Error initializing subscriber count: {e}")
         
     def load_history(self) -> set:
         """Load processed message IDs from file"""
@@ -368,18 +368,18 @@ class YouTubeChatBridge:
                 if current_time - self.last_growth_check >= self.growth_feature_interval:
                     self.last_growth_check = current_time
                     
-                    # Check for follower goal progress announcement (every 30 minutes)
-                    if self.growth.should_announce_follower_progress(announcement_interval_minutes=30):
-                        progress_msg = self.growth.get_follower_progress()
+                    # Check for subscriber goal progress announcement (every 30 minutes)
+                    if self.growth.should_announce_subscriber_progress(announcement_interval_minutes=30):
+                        progress_msg = self.growth.get_subscriber_progress()
                         try:
                             msg_id = self.youtube.post_message(progress_msg)
                             if msg_id:
                                 self.processed_messages.add(msg_id)
                                 self.save_message_id(msg_id)
                                 self.recent_bot_messages.append(self._normalize_text(progress_msg))
-                                logger.info(f"[FOLLOWER PROGRESS]: {progress_msg}")
+                                logger.info(f"[SUBSCRIBER PROGRESS]: {progress_msg}")
                         except Exception as e:
-                            logger.warning(f"Failed to post follower progress: {e}")
+                            logger.warning(f"Failed to post subscriber progress: {e}")
                     
                     # Check for viewer callout (excluding admins)
                     if self.growth.should_do_viewer_callout(callout_interval_minutes=30):
@@ -438,10 +438,10 @@ class YouTubeChatBridge:
                                 stats.get('viewer_count', 0),
                                 stats.get('likes', 0)
                             )
-                            # Update growth features with current follower/subscriber count
+                            # Update growth features with current subscriber count
                             subscriber_count = stats.get('subs', 0)
                             if subscriber_count > 0:
-                                self.growth.update_follower_count(subscriber_count)
+                                self.growth.update_subscriber_count(subscriber_count)
                             self.last_viewer_snapshot = current_time
                     except Exception as e:
                         logger.error(f"Error tracking viewer count: {e}")
@@ -927,7 +927,7 @@ async def run_youtube_chat_bot(
         admin_users=admin_users or []
     )
     
-    # Initialize follower count from YouTube
-    bridge._initialize_follower_count()
+    # Initialize subscriber count from YouTube
+    bridge._initialize_subscriber_count()
     
     await bridge.start()
