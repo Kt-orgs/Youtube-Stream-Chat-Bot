@@ -550,8 +550,9 @@ class YouTubeChatBridge:
         logger.info(f"[{author}]: {text}")
         
         # ========== TRACK GROWTH FEATURES ==========
-        # Check if this is a new viewer and generate welcome
-        is_new_viewer = self.growth.is_new_viewer(author)
+        # Check if this is a new viewer and generate welcome (skip for admins)
+        is_admin = author in self.admin_users
+        is_new_viewer = self.growth.is_new_viewer(author) if not is_admin else False
         if is_new_viewer:
             welcome_message = self.growth.get_new_viewer_welcome(author)
             logger.info(f"[NEW VIEWER WELCOME]: {welcome_message}")
