@@ -550,17 +550,19 @@ class YouTubeChatBridge:
         logger.info(f"[{author}]: {text}")
         
         # ========== TRACK GROWTH FEATURES ==========
-        # Check if this is a new viewer and generate welcome (skip for admins)
+        # Skip growth tracking for admins (no welcomes, no callouts)
         is_admin = author in self.admin_users
-        is_new_viewer = self.growth.is_new_viewer(author) if not is_admin else False
-        if is_new_viewer:
-            welcome_message = self.growth.get_new_viewer_welcome(author)
-            logger.info(f"[NEW VIEWER WELCOME]: {welcome_message}")
-            # We'll post this after the main message processing
-            # Store it to send after response (if any) to avoid message flooding
-        
-        # Track message for activity
-        self.growth.track_message(author)
+        is_new_viewer = False
+        if not is_admin:
+            is_new_viewer = self.growth.is_new_viewer(author)
+            if is_new_viewer:
+                welcome_message = self.growth.get_new_viewer_welcome(author)
+                logger.info(f"[NEW VIEWER WELCOME]: {welcome_message}")
+                # We'll post this after the main message processing
+                # Store it to send after response (if any) to avoid message flooding
+            
+            # Track message for activity (only for non-admins)
+            self.growth.track_message(author)
         
         # Track message count for periodic announcements
         self.messages_since_last_announcement += 1
