@@ -239,7 +239,7 @@ def main():
         logger.info(f"Topic: {stream_topic}")
     
     # Get Bot Name
-    default_bot_name = os.environ.get('BOT_NAME', 'ValoMate')
+    default_bot_name = os.environ.get('BOT_NAME', 'StreamNova')
     if os.environ.get('GITHUB_ACTIONS') == 'true':
         bot_name = default_bot_name
     else:

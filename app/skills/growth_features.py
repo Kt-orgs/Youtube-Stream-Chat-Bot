@@ -209,13 +209,25 @@ class GrowthFeatures:
         remaining = target - messages_so_far
         return f"📊 Challenge Progress: {messages_so_far}/{target} messages ({progress:.0f}%) - {remaining} more needed!"
     
-    def get_active_viewer_callout(self) -> str:
-        """Get callout for most active viewers"""
+    def get_active_viewer_callout(self, admin_users: list = None) -> str:
+        """Get callout for most active viewers (excluding admins)
+        
+        Args:
+            admin_users: List of admin usernames to exclude from shoutouts
+        """
         if not self.active_viewers:
             return None
         
-        # Get top 3 active viewers
-        top_viewers = sorted(self.active_viewers.items(), key=lambda x: x[1], reverse=True)[:3]
+        # Filter out admin users from the list
+        admin_users = admin_users or []
+        filtered_viewers = {user: count for user, count in self.active_viewers.items() 
+                          if user not in admin_users}
+        
+        if not filtered_viewers:
+            return None
+        
+        # Get top 3 active viewers (excluding admins)
+        top_viewers = sorted(filtered_viewers.items(), key=lambda x: x[1], reverse=True)[:3]
         
         if not top_viewers:
             return None

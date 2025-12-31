@@ -2,9 +2,10 @@
 name: YouTube Chat Bot - Auto Stream Detection
 
 on:
-  # Run every 10 minutes to check for live streams
+  # Run every 10 minutes during streaming hours (19:00-03:00 UTC)
   schedule:
-    - cron: '*/10 * * * *'  # Every 10 minutes
+    - cron: '*/10 19-23 * * *'  # Every 10 minutes from 19:00 to 23:59 UTC
+    - cron: '*/10 0-2 * * *'    # Every 10 minutes from 00:00 to 02:59 UTC
   
   # Allow manual trigger
   workflow_dispatch:
@@ -123,8 +124,8 @@ jobs:
         AGENT_NAME: youtube_chat_advanced
         YOUTUBE_VIDEO_ID: ${{ inputs.video_id }}
         # Bot configuration
-        BOT_NAME: ${{ vars.BOT_NAME || 'ValoMate' }}
-        BOT_USERNAME: ${{ vars.BOT_USERNAME || vars.BOT_NAME || 'ValoMate' }}
+        BOT_NAME: ${{ vars.BOT_NAME || 'StreamNova' }}
+        BOT_USERNAME: ${{ vars.BOT_USERNAME || vars.BOT_NAME || 'StreamNova' }}
         # Streamer profile env vars
         STREAMER_NAME: ${{ vars.STREAMER_NAME || 'Streamer' }}
         VALORANT_ID: ${{ vars.VALORANT_ID || secrets.VALORANT_ID }}

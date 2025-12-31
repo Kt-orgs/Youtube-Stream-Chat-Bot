@@ -29,7 +29,7 @@ class HelpCommand(BaseCommand):
         
         # Concise help - fit in YouTube's character limit
         help_text = (
-            "🤖 **ValoMate Commands:**\n\n"
+            "🤖 **StreamNova Commands:**\n\n"
             "📋 General: !help, !ping, !uptime, !socials\n"
             "📊 Stats: !stats, !viewers, !top, !topchatters, !botstats, !export\n"
             "🎮 Valorant: !val [user#tag] [region], !agent [name], !map [name]\n"

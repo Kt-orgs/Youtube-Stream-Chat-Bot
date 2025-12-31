@@ -63,8 +63,8 @@ class YouTubeChatBridge:
         ignore_moderators: bool = False,
         ignore_owner: bool = False,
         require_mention: bool = False,
-        bot_name: str = "ValoMate",
-        bot_username: str = "ValoMate",
+        bot_name: str = "StreamNova",
+        bot_username: str = "StreamNova",
         admin_users: Optional[list] = None
     ):
         """
@@ -80,8 +80,8 @@ class YouTubeChatBridge:
             ignore_moderators: If True, don't respond to moderator messages
             ignore_owner: If True, don't respond to channel owner messages
             require_mention: If True, bot only responds if directly mentioned (more conservative)
-            bot_name: Name of the bot to use in messages (default: ValoMate)
-            bot_username: Custom username/signature for bot messages (default: ValoMate)
+            bot_name: Name of the bot to use in messages (default: StreamNova)
+            bot_username: Custom username/signature for bot messages (default: StreamNova)
             admin_users: List of admin usernames (e.g., ['LokiVersee'])
         """
         # Initialize API with OAuth support (for posting only)
@@ -186,6 +186,8 @@ class YouTubeChatBridge:
         # Periodic announcement settings
         self.announcement_interval = 420  # 7 minutes in seconds
         self.last_announcement_time = 0
+        self.messages_since_last_announcement = 0  # Track message count for smart announcements
+        self.min_messages_for_announcement = 10  # Require at least 10 messages before announcing
         
     def _initialize_follower_count(self):
         """Initialize follower count from YouTube API on startup"""
@@ -379,9 +381,9 @@ class YouTubeChatBridge:
                         except Exception as e:
                             logger.warning(f"Failed to post follower progress: {e}")
                     
-                    # Check for viewer callout
+                    # Check for viewer callout (excluding admins)
                     if self.growth.should_do_viewer_callout(callout_interval_minutes=30):
-                        callout_msg = self.growth.get_active_viewer_callout()
+                        callout_msg = self.growth.get_active_viewer_callout(admin_users=self.admin_users)
                         if callout_msg:
                             try:
                                 msg_id = self.youtube.post_message(callout_msg)
@@ -393,19 +395,24 @@ class YouTubeChatBridge:
                             except Exception as e:
                                 logger.warning(f"Failed to post viewer callout: {e}")
                 
-                # Periodic announcement (every 7 minutes)
+                # Periodic announcement (every 7 minutes + at least 10 messages in chat)
                 if current_time - self.last_announcement_time >= self.announcement_interval:
-                    self.last_announcement_time = current_time
-                    announcement_msg = f"Hey everyone {self.bot_name} is here in the chat ask me anything by tagging me with @{self.bot_name}"
-                    try:
-                        msg_id = self.youtube.post_message(announcement_msg)
-                        if msg_id:
-                            self.processed_messages.add(msg_id)
-                            self.save_message_id(msg_id)
-                            self.recent_bot_messages.append(self._normalize_text(announcement_msg))
-                            logger.info(f"[PERIODIC ANNOUNCEMENT]: {announcement_msg}")
-                    except Exception as e:
-                        logger.warning(f"Failed to post periodic announcement: {e}")
+                    # Only announce if there's been chat activity (at least 10 messages)
+                    if self.messages_since_last_announcement >= self.min_messages_for_announcement:
+                        self.last_announcement_time = current_time
+                        self.messages_since_last_announcement = 0  # Reset counter
+                        announcement_msg = f"Hey everyone {self.bot_name} is here in the chat ask me anything by tagging me with @{self.bot_name}"
+                        try:
+                            msg_id = self.youtube.post_message(announcement_msg)
+                            if msg_id:
+                                self.processed_messages.add(msg_id)
+                                self.save_message_id(msg_id)
+                                self.recent_bot_messages.append(self._normalize_text(announcement_msg))
+                                logger.info(f"[PERIODIC ANNOUNCEMENT]: {announcement_msg} (after {self.messages_since_last_announcement} messages)")
+                        except Exception as e:
+                            logger.warning(f"Failed to post periodic announcement: {e}")
+                    else:
+                        logger.debug(f"[PERIODIC ANNOUNCEMENT SKIPPED]: Only {self.messages_since_last_announcement} messages since last announcement (need {self.min_messages_for_announcement})")
                 
                 # Fetch new messages using pytchat
                 for c in chat.get().sync_items():
@@ -554,6 +561,9 @@ class YouTubeChatBridge:
         # Track message for activity
         self.growth.track_message(author)
         
+        # Track message count for periodic announcements
+        self.messages_since_last_announcement += 1
+        
         # Track message in analytics
         is_command = text.startswith("!")
         command_name = None
@@ -669,7 +679,7 @@ class YouTubeChatBridge:
         """
         Determine if the bot should respond to a message
         
-        PHILOSOPHY: Only respond when the message is directed at the bot (tagged with @ValoMate).
+        PHILOSOPHY: Only respond when the message is directed at the bot (tagged with @StreamNova).
         This avoids interrupting conversations between viewers.
         
         Args:
@@ -683,7 +693,7 @@ class YouTubeChatBridge:
         msg_lower = message.lower().strip()
         
         # ========== MENTION REQUIREMENT ==========
-        # Bot only responds if explicitly mentioned with @ValoMate
+        # Bot only responds if explicitly mentioned with @StreamNova
         if f'@{self.bot_name.lower()}' not in msg_lower:
             logger.debug(f"Message doesn't mention @{self.bot_name} - ignoring: {message[:30]}...")
             return False
@@ -851,8 +861,8 @@ async def run_youtube_chat_bot(
     streamer_profile: dict = None,
     current_game: str = None,
     stream_topic: str = None,
-    bot_name: str = "ValoMate",
-    bot_username: str = "ValoMate",
+    bot_name: str = "StreamNova",
+    bot_username: str = "StreamNova",
     admin_users: list = None
 ):
     """
@@ -864,8 +874,8 @@ async def run_youtube_chat_bot(
         streamer_profile: Dictionary containing streamer details
         current_game: Name of the game being played
         stream_topic: Topic of the stream (if not gaming)
-        bot_name: Name of the bot to use in messages (default: ValoMate)
-        bot_username: Custom username/signature for bot responses (default: ValoMate)
+        bot_name: Name of the bot to use in messages (default: StreamNova)
+        bot_username: Custom username/signature for bot responses (default: StreamNova)
         admin_users: List of admin usernames who can execute restricted commands
     """
     logger.info(f"Starting YouTube chat bot for video: {video_id}")
