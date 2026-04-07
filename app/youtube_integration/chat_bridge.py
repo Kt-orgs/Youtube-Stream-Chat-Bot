@@ -314,6 +314,9 @@ class YouTubeChatBridge:
         self.analytics.start_session(self.video_id, stream_title, game)
         logger.info("Analytics session started")
         
+        # Reset growth features for new stream
+        self.growth.reset_for_new_stream()
+        
         # Start intro message task (post after 60 seconds)
         async def post_intro_after_delay():
             try:

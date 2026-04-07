@@ -67,7 +67,7 @@ class GrowthFeatures:
                     self.subscriber_goal = config.get('subscriber_goal', config.get('follower_goal', 100))
                     self.current_subscribers = config.get('current_subscribers', config.get('current_followers', 0))
                     self.challenge_config = config.get('challenge', {})
-                    self.new_viewers = set(config.get('new_viewers', []))
+                    # Note: new_viewers is not loaded - it's reset each stream
                     logger.info(f"Loaded growth config: goal={self.subscriber_goal}, subscribers={self.current_subscribers}")
             except Exception as e:
                 logger.error(f"Error loading growth config: {e}")
@@ -78,13 +78,22 @@ class GrowthFeatures:
             config = {
                 'subscriber_goal': self.subscriber_goal,
                 'current_subscribers': self.current_subscribers,
-                'challenge': self.challenge_config,
-                'new_viewers': list(self.new_viewers)
+                'challenge': self.challenge_config
+                # Note: new_viewers is not persisted - it's reset each stream
             }
             with open(self.CONFIG_FILE, 'w') as f:
                 json.dump(config, f, indent=2)
         except Exception as e:
             logger.error(f"Error saving growth config: {e}")
+    
+    def reset_for_new_stream(self):
+        """Reset state for a new stream session"""
+        self.new_viewers = set()  # Clear new viewers for this stream
+        self.active_viewers = defaultdict(int)  # Reset message counts
+        self.last_viewer_callout = 0  # Reset callout timer
+        self.last_subscriber_announcement = 0  # Reset announcement timer
+        # Note: Don't reset challenge, goal, or subscriber count - these persist
+        logger.info("Growth features reset for new stream")
     
     def set_subscriber_goal(self, goal: int):
         """Set the subscriber goal target"""
@@ -118,7 +127,6 @@ class GrowthFeatures:
         is_new = username not in self.new_viewers
         if is_new:
             self.new_viewers.add(username)
-            self.save_config()
             logger.info(f"New viewer detected (this stream): {username}")
         return is_new
     
