@@ -457,7 +457,7 @@ https://www.justgiving.com/page/gmv?utm_medium=FR&utm_source=CL&utm_campaign=LFC
                     # Check for subscribe reminder (every 10 minutes)
                     if current_time - self.last_subscribe_time >= self.subscribe_interval:
                         self.last_subscribe_time = current_time
-                        subscribe_msg = "Please consider subscribing to my friend @farziXD who is also helping with this great cause!"
+                        subscribe_msg = "Please consider subscribing to my friend farziXD: https://www.youtube.com/@farziXD who is also helping with this great cause!"
                         try:
                             msg_id = self.youtube.post_message(subscribe_msg)
                             if msg_id:
