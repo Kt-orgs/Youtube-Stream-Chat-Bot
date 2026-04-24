@@ -189,6 +189,14 @@ class YouTubeChatBridge:
         self.messages_since_last_announcement = 0  # Track message count for smart announcements
         self.min_messages_for_announcement = 10  # Require at least 10 messages before announcing
         
+        # Donation reminder settings
+        self.donation_interval = 300  # 5 minutes in seconds
+        self.last_donation_time = 0
+        
+        # Subscribe reminder settings
+        self.subscribe_interval = 600  # 10 minutes in seconds
+        self.last_subscribe_time = 0
+        
     def _initialize_subscriber_count(self):
         """Initialize subscriber count from YouTube API on startup"""
         try:
@@ -347,6 +355,38 @@ class YouTubeChatBridge:
         
         intro_task = asyncio.create_task(post_intro_after_delay())
         
+        # Start donation message task (post after 10 seconds)
+        async def post_donation_after_delay():
+            try:
+                await asyncio.sleep(10)  # Wait 10 seconds
+                if not self.is_running:
+                    return
+
+                donation_msg = """🙏 **Support the cause:**
+📱 Scan the QR code on stream **or donate here:**
+https://www.justgiving.com/page/gmv?utm_medium=FR&utm_source=CL&utm_campaign=LFCFRUK_Day1_ReturnNonSport"""
+                try:
+                    message_id = self.youtube.post_message(donation_msg)
+                    if message_id:
+                        self.recent_bot_messages.append(self._normalize_text(donation_msg))
+                        self.processed_messages.add(message_id)
+                        self.save_message_id(message_id)
+                        logger.info(f"[INITIAL DONATION MESSAGE] Posted donation message (ID: {message_id})")
+                        # Set last_donation_time to now to start the interval
+                        self.last_donation_time = time.time()
+                    else:
+                        logger.warning("Failed to post initial donation message - message_id is None")
+                except Exception as e:
+                    err_text = str(e)
+                    if "INVALID_REQUEST_METADATA" in err_text:
+                        logger.warning("Initial donation message blocked by YouTube API (INVALID_REQUEST_METADATA). Skipping to avoid further errors.")
+                    else:
+                        logger.warning(f"Failed to post initial donation message: {e}")
+            except asyncio.CancelledError:
+                pass
+        
+        donation_task = asyncio.create_task(post_donation_after_delay())
+        
         # QUOTA OPTIMIZATION: Periodic stats disabled - use !stats command instead
         # This saves ~600-4,800 units/day depending on frequency
         logger.info("[QUOTA SAVER] Periodic stats disabled. Use !stats command to get current stats.")
@@ -384,19 +424,49 @@ class YouTubeChatBridge:
                         except Exception as e:
                             logger.warning(f"Failed to post subscriber progress: {e}")
                     
-                    # Check for viewer callout (excluding admins)
-                    if self.growth.should_do_viewer_callout(callout_interval_minutes=30):
-                        callout_msg = self.growth.get_active_viewer_callout(admin_users=self.admin_users)
-                        if callout_msg:
-                            try:
-                                msg_id = self.youtube.post_message(callout_msg)
-                                if msg_id:
-                                    self.processed_messages.add(msg_id)
-                                    self.save_message_id(msg_id)
-                                    self.recent_bot_messages.append(self._normalize_text(callout_msg))
-                                    logger.info(f"[VIEWER CALLOUT]: {callout_msg}")
-                            except Exception as e:
-                                logger.warning(f"Failed to post viewer callout: {e}")
+                    # Check for viewer callout (excluding admins) - SUPPRESSED
+                    # if self.growth.should_do_viewer_callout(callout_interval_minutes=30):
+                    #     callout_msg = self.growth.get_active_viewer_callout(admin_users=self.admin_users)
+                    #     if callout_msg:
+                    #         try:
+                    #             msg_id = self.youtube.post_message(callout_msg)
+                    #             if msg_id:
+                    #                 self.processed_messages.add(msg_id)
+                    #                 self.save_message_id(msg_id)
+                    #                 self.recent_bot_messages.append(self._normalize_text(callout_msg))
+                    #                 logger.info(f"[VIEWER CALLOUT]: {callout_msg}")
+                    #         except Exception as e:
+                    #             logger.warning(f"Failed to post viewer callout: {e}")
+                    
+                    # Check for donation reminder (every 10 minutes)
+                    if current_time - self.last_donation_time >= self.donation_interval:
+                        self.last_donation_time = current_time
+                        donation_msg = """🙏 **Support the cause:**
+📱 Scan the QR code on stream **or donate here:**
+https://www.justgiving.com/page/gmv?utm_medium=FR&utm_source=CL&utm_campaign=LFCFRUK_Day1_ReturnNonSport"""
+                        try:
+                            msg_id = self.youtube.post_message(donation_msg)
+                            if msg_id:
+                                self.processed_messages.add(msg_id)
+                                self.save_message_id(msg_id)
+                                self.recent_bot_messages.append(self._normalize_text(donation_msg))
+                                logger.info(f"[DONATION REMINDER]: {donation_msg}")
+                        except Exception as e:
+                            logger.warning(f"Failed to post donation reminder: {e}")
+                    
+                    # Check for subscribe reminder (every 10 minutes)
+                    if current_time - self.last_subscribe_time >= self.subscribe_interval:
+                        self.last_subscribe_time = current_time
+                        subscribe_msg = "Please consider subscribing to my friend @farziXD who is also helping with this great cause!"
+                        try:
+                            msg_id = self.youtube.post_message(subscribe_msg)
+                            if msg_id:
+                                self.processed_messages.add(msg_id)
+                                self.save_message_id(msg_id)
+                                self.recent_bot_messages.append(self._normalize_text(subscribe_msg))
+                                logger.info(f"[SUBSCRIBE REMINDER]: {subscribe_msg}")
+                        except Exception as e:
+                            logger.warning(f"Failed to post subscribe reminder: {e}")
                 
                 # Periodic announcement (every 7 minutes + at least 10 messages in chat)
                 if current_time - self.last_announcement_time >= self.announcement_interval:
@@ -665,21 +735,21 @@ class YouTubeChatBridge:
             # Check if this is a returning viewer with historical data
             is_returning = self.growth.is_returning_viewer(author)
             
-            if is_returning:
-                # Use personalized returning viewer message
-                welcome_message = self.growth.get_returning_viewer_welcome(author)
-                logger.info(f"[RETURNING VIEWER]: {author} - using personalized welcome")
-            else:
-                # Use generic new viewer message
-                welcome_message = self.growth.get_new_viewer_welcome(author)
+            if not is_returning:
+                # Only greet completely new viewers with generic message
+                welcome_message = f"👋 Welcome to the stream {author}! Glad to have you here."
                 logger.info(f"[NEW VIEWER]: {author} - completely new viewer")
-            
-            welcome_msg_id = self.youtube.post_message(welcome_message)
-            if welcome_msg_id:
-                self.processed_messages.add(welcome_msg_id)
-                self.save_message_id(welcome_msg_id)
-                self.recent_bot_messages.append(self._normalize_text(welcome_message))
-                logger.info(f"[VIEWER WELCOME]: {welcome_message}")
+                
+                welcome_msg_id = self.youtube.post_message(welcome_message)
+                if welcome_msg_id:
+                    self.processed_messages.add(welcome_msg_id)
+                    self.save_message_id(welcome_msg_id)
+                    self.recent_bot_messages.append(self._normalize_text(welcome_message))
+                    logger.info(f"[VIEWER WELCOME]: {welcome_message}")
+                else:
+                    logger.warning("Failed to post welcome message")
+            else:
+                logger.info(f"[RETURNING VIEWER]: {author} - not greeting returning viewer")
     
     def should_respond_to_message(self, message: str) -> bool:
         """
