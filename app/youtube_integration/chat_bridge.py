@@ -355,38 +355,6 @@ class YouTubeChatBridge:
         
         intro_task = asyncio.create_task(post_intro_after_delay())
         
-        # Start donation message task (post after 10 seconds)
-        async def post_donation_after_delay():
-            try:
-                await asyncio.sleep(10)  # Wait 10 seconds
-                if not self.is_running:
-                    return
-
-                donation_msg = """🙏 **Support the cause:**
-📱 Scan the QR code on stream **or donate here:**
-https://www.justgiving.com/page/gmv?utm_medium=FR&utm_source=CL&utm_campaign=LFCFRUK_Day1_ReturnNonSport"""
-                try:
-                    message_id = self.youtube.post_message(donation_msg)
-                    if message_id:
-                        self.recent_bot_messages.append(self._normalize_text(donation_msg))
-                        self.processed_messages.add(message_id)
-                        self.save_message_id(message_id)
-                        logger.info(f"[INITIAL DONATION MESSAGE] Posted donation message (ID: {message_id})")
-                        # Set last_donation_time to now to start the interval
-                        self.last_donation_time = time.time()
-                    else:
-                        logger.warning("Failed to post initial donation message - message_id is None")
-                except Exception as e:
-                    err_text = str(e)
-                    if "INVALID_REQUEST_METADATA" in err_text:
-                        logger.warning("Initial donation message blocked by YouTube API (INVALID_REQUEST_METADATA). Skipping to avoid further errors.")
-                    else:
-                        logger.warning(f"Failed to post initial donation message: {e}")
-            except asyncio.CancelledError:
-                pass
-        
-        donation_task = asyncio.create_task(post_donation_after_delay())
-        
         # QUOTA OPTIMIZATION: Periodic stats disabled - use !stats command instead
         # This saves ~600-4,800 units/day depending on frequency
         logger.info("[QUOTA SAVER] Periodic stats disabled. Use !stats command to get current stats.")
@@ -438,35 +406,7 @@ https://www.justgiving.com/page/gmv?utm_medium=FR&utm_source=CL&utm_campaign=LFC
                     #         except Exception as e:
                     #             logger.warning(f"Failed to post viewer callout: {e}")
                     
-                    # Check for donation reminder (every 10 minutes)
-                    if current_time - self.last_donation_time >= self.donation_interval:
-                        self.last_donation_time = current_time
-                        donation_msg = """🙏 **Support the cause:**
-📱 Scan the QR code on stream **or donate here:**
-https://www.justgiving.com/page/gmv?utm_medium=FR&utm_source=CL&utm_campaign=LFCFRUK_Day1_ReturnNonSport"""
-                        try:
-                            msg_id = self.youtube.post_message(donation_msg)
-                            if msg_id:
-                                self.processed_messages.add(msg_id)
-                                self.save_message_id(msg_id)
-                                self.recent_bot_messages.append(self._normalize_text(donation_msg))
-                                logger.info(f"[DONATION REMINDER]: {donation_msg}")
-                        except Exception as e:
-                            logger.warning(f"Failed to post donation reminder: {e}")
-                    
-                    # Check for subscribe reminder (every 10 minutes)
-                    if current_time - self.last_subscribe_time >= self.subscribe_interval:
-                        self.last_subscribe_time = current_time
-                        subscribe_msg = "Please consider subscribing to my friend farziXD: https://www.youtube.com/@farziXD who is also helping with this great cause!"
-                        try:
-                            msg_id = self.youtube.post_message(subscribe_msg)
-                            if msg_id:
-                                self.processed_messages.add(msg_id)
-                                self.save_message_id(msg_id)
-                                self.recent_bot_messages.append(self._normalize_text(subscribe_msg))
-                                logger.info(f"[SUBSCRIBE REMINDER]: {subscribe_msg}")
-                        except Exception as e:
-                            logger.warning(f"Failed to post subscribe reminder: {e}")
+
                 
                 # Periodic announcement (every 7 minutes + at least 10 messages in chat)
                 if current_time - self.last_announcement_time >= self.announcement_interval:
